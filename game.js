@@ -56,13 +56,13 @@ class MenuScene extends Phaser.Scene {
       { key:"birdGold",  pts:"300", x:W*0.82, label:"Бонусная" },
     ];
     birds.forEach(({ key, pts, x, label }) => {
-      const img = this.add.image(x, H*0.48, key).setScale(0.18);
+      const img = this.add.image(x, H*0.48, key).setScale(0.14);
       this.tweens.add({ targets:img, y:H*0.48-14, duration:900+Math.random()*400, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
       this.add.text(x, H*0.57, `+${pts}`, { fontSize:"38px", color:"#FFD700", stroke:"#000", strokeThickness:5 }).setOrigin(0.5);
       this.add.text(x, H*0.62, label,    { fontSize:"26px", color:"#fff",    stroke:"#000", strokeThickness:4 }).setOrigin(0.5);
     });
 
-    const gun = this.add.image(W/2, H*0.80, "gun").setScale(0.15);
+    const gun = this.add.image(W/2, H*0.80, "gun").setScale(0.275);
     this.tweens.add({ targets:gun, y:H*0.80-8, duration:1200, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
     this.add.text(W/2, H*0.73, "ТАП = ВЫСТРЕЛ", { fontSize:"38px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5);
 
@@ -102,7 +102,7 @@ class GameScene extends Phaser.Scene {
 
     // Пушка
     this.gun = this.add.image(W/2, H - 60, "gun");
-    this.gun.setOrigin(0.2, 0.25).setScale(0.20);
+    this.gun.setOrigin(0.5, 0.90).setScale(0.275);
 
     // Индикатор заряда (шкала под пушкой)
     this.chargeBarBg = this.add.rectangle(W/2, H - 18, 320, 18, 0x333333, 0.7).setDepth(10);
@@ -147,7 +147,7 @@ class GameScene extends Phaser.Scene {
       this.chargeX   = p.x;
       this.chargeY   = p.y;
       // Поворот пушки сразу при зажатии
-      const angle = Phaser.Math.Angle.Between(this.gun.x, this.gun.y - 70, p.x, p.y);
+      const angle = Phaser.Math.Angle.Between(this.gun.x, this.gun.y - 35, p.x, p.y);
       this.gun.setRotation(angle + Math.PI/2);
     });
 
@@ -155,7 +155,7 @@ class GameScene extends Phaser.Scene {
       if(!this.isHolding || this.isGameOver) return;
       this.chargeX = p.x;
       this.chargeY = p.y;
-      const angle = Phaser.Math.Angle.Between(this.gun.x, this.gun.y - 70, p.x, p.y);
+      const angle = Phaser.Math.Angle.Between(this.gun.x, this.gun.y - 35, p.x, p.y);
       this.gun.setRotation(angle + Math.PI/2);
     });
 
@@ -215,7 +215,7 @@ class GameScene extends Phaser.Scene {
 
   // ── ВЫСТРЕЛ: held — время зажатия в мс ──
   shoot(tx, ty, held) {
-    const gx = this.gun.x, gy = this.gun.y - 70;
+    const gx = this.gun.x, gy = this.gun.y - 35;
     const t  = Math.min(held / 1500, 1);
     const speed = 600 + t * 1400;
 
@@ -284,10 +284,10 @@ class GameScene extends Phaser.Scene {
     const { width:W, height:H } = this.scale;
     const side = Phaser.Math.Between(0,1);
     const roll = Phaser.Math.Between(1,100);
-    let texture="birdBlue", points=100, speed=Phaser.Math.Between(110,160), scale=0.16, isDanger=false;
-    if(roll>60&&roll<=78)  { texture="birdRed";   points=150; speed=Phaser.Math.Between(180,250); scale=0.14; }
-    else if(roll>78&&roll<=90) { texture="birdBlack"; points=0;   speed=Phaser.Math.Between(200,280); scale=0.13; isDanger=true; }
-    else if(roll>90)           { texture="birdGold";  points=300; speed=Phaser.Math.Between(130,190); scale=0.18; }
+    let texture="birdBlue", points=100, speed=Phaser.Math.Between(110,160), scale=0.13, isDanger=false;
+    if(roll>60&&roll<=78)  { texture="birdRed";   points=150; speed=Phaser.Math.Between(180,250); scale=0.12; }
+    else if(roll>78&&roll<=90) { texture="birdBlack"; points=0;   speed=Phaser.Math.Between(200,280); scale=0.115; isDanger=true; }
+    else if(roll>90)           { texture="birdGold";  points=300; speed=Phaser.Math.Between(130,190); scale=0.14; }
 
     const spawnY  = Phaser.Math.Between(140, Math.floor(H*0.60));
     const startX  = side===0 ? -160 : W+160;
@@ -298,10 +298,10 @@ class GameScene extends Phaser.Scene {
     bird.setScale(scale);
     bird.points   = points;
     bird.isDanger = isDanger;
-    // Текстура нарисована головой влево:
-    // side=0 (летит влево→вправо): нужен flipX чтобы голова смотрела вправо
-    // side=1 (летит вправо→влево): flipX не нужен, голова и так смотрит влево
-    if(side===0) bird.setFlipX(true);
+    // Текущие PNG птиц нарисованы головой вправо:
+    // side=0 (летит слева направо): flipX не нужен
+    // side=1 (летит справа налево): отражаем по X
+    bird.setFlipX(side===1);
     this.physics.moveTo(bird, targetX, targetY, speed);
     this.tweens.add({ targets:bird, y:bird.y+Phaser.Math.Between(-30,30), duration:Phaser.Math.Between(450,850), yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
   }
