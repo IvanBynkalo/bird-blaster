@@ -148,7 +148,7 @@ class GameScene extends Phaser.Scene {
       this.chargeX   = p.x;
       this.chargeY   = p.y;
       // Поворот пушки сразу при зажатии
-      const angle = Phaser.Math.Angle.Between(this.gun.x, this.gun.y - 35, p.x, p.y);
+      const angle = Phaser.Math.Angle.Between(this.gun.x, this.gun.y, p.x, p.y);
       this.gun.setRotation(angle + Math.PI/2);
     });
 
@@ -156,7 +156,7 @@ class GameScene extends Phaser.Scene {
       if(!this.isHolding || this.isGameOver) return;
       this.chargeX = p.x;
       this.chargeY = p.y;
-      const angle = Phaser.Math.Angle.Between(this.gun.x, this.gun.y - 35, p.x, p.y);
+      const angle = Phaser.Math.Angle.Between(this.gun.x, this.gun.y, p.x, p.y);
       this.gun.setRotation(angle + Math.PI/2);
     });
 
@@ -214,9 +214,22 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  getGunMuzzle() {
+    // Локальная точка дула относительно origin(0.5, 0.90).
+    // PNG бластера направлен вверх, поэтому дуло находится высоко над точкой опоры.
+    const localX = 0;
+    const localY = -this.gun.displayHeight * 0.68;
+    const cos = Math.cos(this.gun.rotation);
+    const sin = Math.sin(this.gun.rotation);
+    return {
+      x: this.gun.x + localX * cos - localY * sin,
+      y: this.gun.y + localX * sin + localY * cos,
+    };
+  }
+
   // ── ВЫСТРЕЛ: held — время зажатия в мс ──
   shoot(tx, ty, held) {
-    const gx = this.gun.x, gy = this.gun.y - 35;
+    const { x: gx, y: gy } = this.getGunMuzzle();
     const t  = Math.min(held / 1500, 1);
     const speed = 600 + t * 1400;
 
