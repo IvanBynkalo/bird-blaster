@@ -232,6 +232,8 @@ class GameScene extends Phaser.Scene {
     this.isGameOver  = false;
     this.missStreak  = 0;
     this.hitStreak   = 0;
+    this.comboHits   = 0;
+    this.comboMult   = 1;
     this.superReady  = false;
     this.holdStart   = 0;
     this.isHolding   = false;
@@ -267,8 +269,9 @@ class GameScene extends Phaser.Scene {
     this.add.rectangle(W/2, 60, W-4, 116, 0x6d4c41, 0.5);
     this.timeText  = this.add.text(24, 20, "⏱ 60", { fontSize:"44px", color:"#FFD700", stroke:"#000", strokeThickness:6 });
     this.scoreText = this.add.text(W/2, 20, "SCORE: 0", { fontSize:"44px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5, 0);
+    this.comboText = this.add.text(W/2, 72, "", { fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0);
     this.livesText = this.add.text(W-20, 20, "❤❤❤", { fontSize:"38px", color:"#ff4d4d", stroke:"#000", strokeThickness:5 }).setOrigin(1, 0);
-    this.playerText = this.add.text(24, 72, `Игрок: ${this.playerName}`, {
+    this.playerText = this.add.text(24, 102, `Игрок: ${this.playerName}`, {
       fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:4
     });
 
@@ -430,6 +433,7 @@ class GameScene extends Phaser.Scene {
 
   registerMiss() {
     if(this.isGameOver) return;
+    this.resetCombo();
     this.missStreak++;
     for(let i = 0; i < 3; i++) {
       this.missIcons[i].setColor(i < this.missStreak ? "#ff4444" : "#888");
@@ -437,7 +441,42 @@ class GameScene extends Phaser.Scene {
     if(this.missStreak >= 3) {
       this.missStreak = 0;
       for(let i = 0; i < 3; i++) this.missIcons[i].setColor("#888");
+      this.cameras.main.shake(120, 0.008);
       this.loseLife("miss");
+    }
+  }
+
+  getComboMultiplier() {
+    if (this.comboHits >= 12) return 5;
+    if (this.comboHits >= 8) return 3;
+    if (this.comboHits >= 4) return 2;
+    return 1;
+  }
+
+  updateComboUI() {
+    if (!this.comboText) return;
+    if (this.comboHits <= 1) {
+      this.comboText.setText("");
+      return;
+    }
+    const label = `🔥 COMBO x${this.comboMult} · ${this.comboHits}`;
+    this.comboText.setText(label);
+    const color = this.comboMult >= 5 ? "#ff5a00" : this.comboMult >= 3 ? "#00e5ff" : "#FFD700";
+    this.comboText.setColor(color);
+  }
+
+  resetCombo() {
+    this.comboHits = 0;
+    this.comboMult = 1;
+    this.updateComboUI();
+  }
+
+  addCombo() {
+    this.comboHits++;
+    this.comboMult = this.getComboMultiplier();
+    this.updateComboUI();
+    if (this.comboHits > 1) {
+      this.tweens.add({ targets:this.comboText, scaleX:1.12, scaleY:1.12, duration:90, yoyo:true });
     }
   }
 
@@ -483,12 +522,16 @@ class GameScene extends Phaser.Scene {
       const hit = this.add.image(bx, by, "hit").setScale(0.6).setTint(0xff0000);
       this.tweens.add({ targets:hit, alpha:0, scale:1.8, duration:400, onComplete:()=>hit.destroy() });
 
+      this.resetCombo();
+      this.cameras.main.shake(160, 0.012);
       this.loseLife("black_bird");
       return;
     }
 
     this.missStreak = 0;
     for(let i=0;i<3;i++) this.missIcons[i].setColor("#888");
+
+    this.addCombo();
 
     this.hitStreak++;
     for(let i=0;i<3;i++) {
@@ -513,14 +556,17 @@ class GameScene extends Phaser.Scene {
         angle:Phaser.Math.Between(-180,180), alpha:0, duration:700+Math.random()*300, ease:"Quad.easeOut", onComplete:()=>f.destroy() });
     }
 
-    const color = pts>=300?"#FFD700":"#7CFF00";
-    const popup = this.add.text(bx, by-30, `+${pts}`, {
+    const gained = pts * this.comboMult;
+    const color = this.comboMult >= 3 ? "#00e5ff" : (pts>=300?"#FFD700":"#7CFF00");
+    const popupLabel = this.comboMult > 1 ? `+${gained}  x${this.comboMult}` : `+${gained}`;
+    const popup = this.add.text(bx, by-30, popupLabel, {
       fontSize:"60px", color, stroke:"#000", strokeThickness:7, fontStyle:"bold"
     }).setOrigin(0.5);
     this.tweens.add({ targets:popup, y:popup.y-80, alpha:0, duration:700, ease:"Quad.easeOut", onComplete:()=>popup.destroy() });
 
-    this.score += pts;
+    this.score += gained;
     this.scoreText.setText(`SCORE: ${this.score}`);
+    this.cameras.main.shake(90, 0.004 + Math.min(this.comboMult, 5) * 0.0015);
   }
 
   updateGameTimer() {
@@ -540,6 +586,7 @@ class GameScene extends Phaser.Scene {
 
   loseLife(reason) {
     if(this.isGameOver) return;
+    this.resetCombo();
     this.lives--;
     const hearts = ["","❤","❤❤","❤❤❤"];
     this.livesText.setText(hearts[Math.max(0, this.lives)]);
