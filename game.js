@@ -349,8 +349,10 @@ class GameScene extends Phaser.Scene {
     this.lives       = 3;
     this.timeLeft    = 60;
     this.isGameOver  = false;
-    this.missStreak  = 0;   // промахов подряд (3 = -жизнь)
-    this.holdStart   = 0;   // время зажатия (мс)
+    this.missStreak  = 0;
+    this.hitStreak   = 0;
+    this.superReady  = false;
+    this.holdStart   = 0;
     this.isHolding   = false;
     this.chargeX     = 0;
     this.chargeY     = 0;
@@ -387,6 +389,18 @@ class GameScene extends Phaser.Scene {
     this.timeText  = this.add.text(24, 20, "⏱ 60", { fontSize:"44px", color:"#FFD700", stroke:"#000", strokeThickness:6 });
     this.scoreText = this.add.text(W/2, 20, "SCORE: 0", { fontSize:"44px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5, 0);
     this.livesText = this.add.text(W-20, 20, "❤❤❤", { fontSize:"38px", color:"#ff4d4d", stroke:"#000", strokeThickness:5 }).setOrigin(1, 0);
+
+    // Счётчик серии попаданий (супер-выстрел)
+    this.hitIcons = [];
+    for(let i = 0; i < 3; i++) {
+      const ic = this.add.text(W/2 + 90 + i*38, H - 48, "◎", {
+        fontSize:"26px", color:"#555", stroke:"#000", strokeThickness:3
+      }).setDepth(10);
+      this.hitIcons.push(ic);
+    }
+    this.superLabel = this.add.text(W/2, H - 78, "", {
+      fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    }).setOrigin(0.5).setDepth(12);
 
     this.physics.add.overlap(this.bullets, this.birds, this.handleBulletHitBird, null, this);
 
@@ -442,12 +456,12 @@ class GameScene extends Phaser.Scene {
       this.chargeLabel.setText(t < 0.05 ? "" : `${speed} px/s`);
     }
 
-    // Удаляем улетевшие пули
+    // Удаляем улетевшие пули — ВАЖНО: флаг counted чтобы registerMiss не срабатывал на каждый кадр
     this.bullets.children.each((b) => {
-      if(!b.active) return;
+      if(!b.active || b.counted) return;
       if(b.x<-80||b.x>W+80||b.y<-80||b.y>H+80) {
+        b.counted = true;
         b.destroy();
-        // Промах — пуля улетела не попав
         this.registerMiss();
       }
     });
@@ -466,27 +480,51 @@ class GameScene extends Phaser.Scene {
   shoot(tx, ty, held) {
     const gx = this.gun.x, gy = this.gun.y - 70;
     const t  = Math.min(held / 1500, 1);
-    // Скорость: 600 (тап) → 2000 (макс заряд)
     const speed = 600 + t * 1400;
 
+    if(this.superReady) {
+      // ── СУПЕР-ВЫСТРЕЛ: 3 снаряда с рассеиванием ──
+      this.superReady = false;
+      this.superLabel.setText("");
+      for(let i=0;i<3;i++) { this.hitIcons[i].setColor("#555"); this.hitIcons[i].setText("◎"); }
+
+      const baseAngle = Phaser.Math.Angle.Between(gx, gy, tx, ty);
+      const spread    = [-0.18, 0, 0.18]; // рассеивание в радианах (~10°)
+      spread.forEach((offset, idx) => {
+        const ang = baseAngle + offset;
+        const b = this.bullets.create(gx, gy, "bullet");
+        b.setScale(1.1).setTint(0xFFD700);
+        const vx = Math.cos(ang) * (speed + 300);
+        const vy = Math.sin(ang) * (speed + 300);
+        b.setVelocity(vx, vy);
+        this.spawnTrail(b, 0xFFD700, 8);
+      });
+
+      // Мощная отдача
+      this.tweens.add({ targets:this.gun, scaleX:0.82, scaleY:0.82, duration:80, yoyo:true });
+
+      // Вспышка-кольцо у дула
+      const ring = this.add.circle(gx, gy, 8, 0xFFD700, 0.9);
+      this.tweens.add({ targets:ring, scaleX:6, scaleY:6, alpha:0, duration:300, onComplete:()=>ring.destroy() });
+      return;
+    }
+
     const bullet = this.bullets.create(gx, gy, "bullet");
-    // Размер пули зависит от заряда
     bullet.setScale(0.8 + t * 0.8);
-    bullet.isCharged = t > 0.5; // помечаем заряженную пулю
     this.physics.moveTo(bullet, tx, ty, speed);
-
-    // Цвет следа: обычный = голубой, заряженный = огненный
     const trailColor = t < 0.5 ? 0x00e5ff : (t < 0.8 ? 0xffcc00 : 0xff4400);
-    this.time.addEvent({ delay:16, repeat:6, callback:() => {
-      if(!bullet.active) return;
-      const r = Math.round((0.6 + t * 0.6) * 6);
-      const trail = this.add.circle(bullet.x, bullet.y, r, trailColor, 0.6);
-      this.tweens.add({ targets:trail, alpha:0, scaleX:0, scaleY:0, duration:160, onComplete:()=>trail.destroy() });
-    }});
+    this.spawnTrail(bullet, trailColor, Math.round((0.6 + t * 0.6) * 6));
 
-    // Отдача пушки — сильнее при заряде
     const kick = 0.94 - t * 0.08;
     this.tweens.add({ targets:this.gun, scaleX:kick, scaleY:kick, duration:55, yoyo:true });
+  }
+
+  spawnTrail(bullet, color, radius) {
+    this.time.addEvent({ delay:16, repeat:6, callback:() => {
+      if(!bullet.active) return;
+      const trail = this.add.circle(bullet.x, bullet.y, radius, color, 0.6);
+      this.tweens.add({ targets:trail, alpha:0, scaleX:0, scaleY:0, duration:160, onComplete:()=>trail.destroy() });
+    }});
   }
 
   // ── ПРОМАХ — пуля улетела за экран ──
@@ -523,7 +561,10 @@ class GameScene extends Phaser.Scene {
     bird.setScale(scale);
     bird.points   = points;
     bird.isDanger = isDanger;
-    if(side===1) bird.setFlipX(true);
+    // Текстура нарисована головой влево:
+    // side=0 (летит влево→вправо): нужен flipX чтобы голова смотрела вправо
+    // side=1 (летит вправо→влево): flipX не нужен, голова и так смотрит влево
+    if(side===0) bird.setFlipX(true);
     this.physics.moveTo(bird, targetX, targetY, speed);
     this.tweens.add({ targets:bird, y:bird.y+Phaser.Math.Between(-30,30), duration:Phaser.Math.Between(450,850), yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
   }
@@ -553,9 +594,22 @@ class GameScene extends Phaser.Scene {
     }
 
     // Обычное попадание
-    // Сбрасываем счётчик промахов при попадании
     this.missStreak = 0;
     for(let i=0;i<3;i++) this.missIcons[i].setColor("#888");
+
+    // Серия попаданий → супер-выстрел
+    this.hitStreak++;
+    for(let i=0;i<3;i++) {
+      this.hitIcons[i].setColor(i < this.hitStreak ? "#FFD700" : "#555");
+      this.hitIcons[i].setText(i < this.hitStreak ? "★" : "◎");
+    }
+    if(this.hitStreak >= 3) {
+      this.hitStreak = 0;
+      this.superReady = true;
+      this.superLabel.setText("⚡ СУПЕР!");
+      this.tweens.add({ targets:this.superLabel, scaleX:1.2, scaleY:1.2, duration:300, yoyo:true, repeat:2 });
+      for(let i=0;i<3;i++) { this.hitIcons[i].setColor("#00e5ff"); this.hitIcons[i].setText("★"); }
+    }
 
     const hit = this.add.image(bx, by, "hit").setScale(0.7);
     this.tweens.add({ targets:hit, alpha:0, scale:1.3, duration:350, onComplete:()=>hit.destroy() });
