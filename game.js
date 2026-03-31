@@ -102,7 +102,7 @@ class GameScene extends Phaser.Scene {
 
     // Пушка
     this.gun = this.add.image(W/2, H - 60, "gun");
-    this.gun.setOrigin(0.5, 0.90).setScale(0.20);
+    this.gun.setOrigin(0.2, 0.25).setScale(0.20);
 
     // Индикатор заряда (шкала под пушкой)
     this.chargeBarBg = this.add.rectangle(W/2, H - 18, 320, 18, 0x333333, 0.7).setDepth(10);
