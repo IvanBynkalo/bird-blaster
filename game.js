@@ -102,7 +102,7 @@ class GameScene extends Phaser.Scene {
 
     // Пушка
     this.gun = this.add.image(W/2, H - 60, "gun");
-    this.gun.setOrigin(0.5, 0.90).setScale(0.55);
+    this.gun.setOrigin(0.5, 0.90).setScale(0.20);
 
     // Индикатор заряда (шкала под пушкой)
     this.chargeBarBg = this.add.rectangle(W/2, H - 18, 320, 18, 0x333333, 0.7).setDepth(10);
@@ -284,10 +284,10 @@ class GameScene extends Phaser.Scene {
     const { width:W, height:H } = this.scale;
     const side = Phaser.Math.Between(0,1);
     const roll = Phaser.Math.Between(1,100);
-    let texture="birdBlue", points=100, speed=Phaser.Math.Between(110,160), scale=0.26, isDanger=false;
-    if(roll>60&&roll<=78)  { texture="birdRed";   points=150; speed=Phaser.Math.Between(180,250); scale=0.24; }
-    else if(roll>78&&roll<=90) { texture="birdBlack"; points=0;   speed=Phaser.Math.Between(200,280); scale=0.23; isDanger=true; }
-    else if(roll>90)           { texture="birdGold";  points=300; speed=Phaser.Math.Between(130,190); scale=0.28; }
+    let texture="birdBlue", points=100, speed=Phaser.Math.Between(110,160), scale=0.16, isDanger=false;
+    if(roll>60&&roll<=78)  { texture="birdRed";   points=150; speed=Phaser.Math.Between(180,250); scale=0.14; }
+    else if(roll>78&&roll<=90) { texture="birdBlack"; points=0;   speed=Phaser.Math.Between(200,280); scale=0.13; isDanger=true; }
+    else if(roll>90)           { texture="birdGold";  points=300; speed=Phaser.Math.Between(130,190); scale=0.18; }
 
     const spawnY  = Phaser.Math.Between(140, Math.floor(H*0.60));
     const startX  = side===0 ? -160 : W+160;
