@@ -1,15 +1,82 @@
+
 // Bird Blaster — PNG-версия (все ассеты из assets/)
+
+const LEADERBOARD_KEY = "bird_blaster_leaderboard_v1";
+const PLAYER_NAME_KEY = "bird_blaster_player_name_v1";
+
+function sanitizePlayerName(name) {
+  return (name || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 16);
+}
+
+function getSavedPlayerName() {
+  try {
+    return sanitizePlayerName(localStorage.getItem(PLAYER_NAME_KEY) || "");
+  } catch (e) {
+    return "";
+  }
+}
+
+function savePlayerName(name) {
+  const clean = sanitizePlayerName(name);
+  try {
+    localStorage.setItem(PLAYER_NAME_KEY, clean);
+  } catch (e) {}
+  return clean;
+}
+
+function loadLeaderboard() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((row) => ({
+        name: sanitizePlayerName(row.name || "Игрок") || "Игрок",
+        score: Number(row.score) || 0,
+        date: row.date || new Date().toISOString().slice(0, 10)
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveLeaderboard(rows) {
+  try {
+    localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(rows.slice(0, 10)));
+  } catch (e) {}
+}
+
+function addLeaderboardScore(name, score) {
+  const rows = loadLeaderboard();
+  rows.push({
+    name: sanitizePlayerName(name) || "Игрок",
+    score: Math.max(0, Math.round(score || 0)),
+    date: new Date().toISOString().slice(0, 10)
+  });
+  rows.sort((a, b) => b.score - a.score);
+  const trimmed = rows.slice(0, 10);
+  saveLeaderboard(trimmed);
+  return trimmed;
+}
+
+function getLeaderboardRank(score) {
+  const rows = loadLeaderboard();
+  const better = rows.filter((row) => row.score > score).length;
+  return better + 1;
+}
 
 class BootScene extends Phaser.Scene {
   constructor() { super("BootScene"); }
 
   preload() {
-    // Если PNG не найден — не крашимся, просто пропускаем
     this.load.on("loaderror", (file) => {
       console.warn("Asset not found:", file.key, "— using fallback");
     });
 
-    // Показываем прогресс загрузки
     const W = this.scale.width, H = this.scale.height;
     const bar = this.add.rectangle(W/2, H/2, 400, 20, 0x333333);
     const fill = this.add.rectangle(W/2 - 200, H/2, 0, 16, 0x00e5ff).setOrigin(0, 0.5);
@@ -19,7 +86,6 @@ class BootScene extends Phaser.Scene {
 
     this.load.on("progress", (v) => { fill.width = 400 * v; });
 
-    // ── Ассеты ──
     this.load.image("bg",        "assets/bg.png");
     this.load.image("gun",       "assets/gun.png");
     this.load.image("birdBlue",  "assets/bird_blue.png");
@@ -32,23 +98,22 @@ class BootScene extends Phaser.Scene {
   }
 
   create() {
+    this.registry.set("playerName", getSavedPlayerName());
     this.scene.start("MenuScene");
   }
 }
 
-// ══════════════════════════════════════════════
-//  МЕНЮ
-// ══════════════════════════════════════════════
 class MenuScene extends Phaser.Scene {
   constructor() { super("MenuScene"); }
+
   create() {
     const { width: W, height: H } = this.scale;
     this.add.image(W/2, H/2, "bg").setDisplaySize(W, H);
 
-    this.add.rectangle(W/2, H*0.18, 590, 132, 0x5d4037).setStrokeStyle(7, 0x3e2723);
-    this.add.rectangle(W/2, H*0.18, 582, 124, 0x6d4c41);
-    this.add.text(W/2, H*0.13, "BIRD", { fontSize:"102px", color:"#FFD700", stroke:"#7f4000", strokeThickness:14, fontStyle:"bold" }).setOrigin(0.5);
-    this.add.text(W/2, H*0.22, "BLASTER", { fontSize:"74px", color:"#00e5ff", stroke:"#003366", strokeThickness:10, fontStyle:"bold" }).setOrigin(0.5);
+    this.add.rectangle(W/2, H*0.16, 590, 132, 0x5d4037).setStrokeStyle(7, 0x3e2723);
+    this.add.rectangle(W/2, H*0.16, 582, 124, 0x6d4c41);
+    this.add.text(W/2, H*0.115, "BIRD", { fontSize:"102px", color:"#FFD700", stroke:"#7f4000", strokeThickness:14, fontStyle:"bold" }).setOrigin(0.5);
+    this.add.text(W/2, H*0.195, "BLASTER", { fontSize:"74px", color:"#00e5ff", stroke:"#003366", strokeThickness:10, fontStyle:"bold" }).setOrigin(0.5);
 
     const birds = [
       { key:"birdBlue",  pts:"100", x:W*0.18, label:"Обычная" },
@@ -56,30 +121,111 @@ class MenuScene extends Phaser.Scene {
       { key:"birdGold",  pts:"300", x:W*0.82, label:"Бонусная" },
     ];
     birds.forEach(({ key, pts, x, label }) => {
-      const img = this.add.image(x, H*0.48, key).setScale(0.14);
-      this.tweens.add({ targets:img, y:H*0.48-14, duration:900+Math.random()*400, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
-      this.add.text(x, H*0.57, `+${pts}`, { fontSize:"38px", color:"#FFD700", stroke:"#000", strokeThickness:5 }).setOrigin(0.5);
-      this.add.text(x, H*0.62, label,    { fontSize:"26px", color:"#fff",    stroke:"#000", strokeThickness:4 }).setOrigin(0.5);
+      const img = this.add.image(x, H*0.39, key).setScale(0.14);
+      this.tweens.add({ targets:img, y:H*0.39-14, duration:900+Math.random()*400, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
+      this.add.text(x, H*0.48, `+${pts}`, { fontSize:"38px", color:"#FFD700", stroke:"#000", strokeThickness:5 }).setOrigin(0.5);
+      this.add.text(x, H*0.53, label,    { fontSize:"26px", color:"#fff",    stroke:"#000", strokeThickness:4 }).setOrigin(0.5);
     });
 
-    const gun = this.add.image(W/2, H*0.80, "gun").setScale(0.275);
-    this.tweens.add({ targets:gun, y:H*0.80-8, duration:1200, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
-    this.add.text(W/2, H*0.73, "ТАП = ВЫСТРЕЛ", { fontSize:"38px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5);
+    const gun = this.add.image(W/2, H*0.71, "gun").setScale(0.275);
+    this.tweens.add({ targets:gun, y:H*0.71-8, duration:1200, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
+    this.add.text(W/2, H*0.645, "ЗАЖМИ И ОТПУСТИ = ВЫСТРЕЛ", { fontSize:"30px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5);
 
-    const btn = this.add.rectangle(W/2, H*0.91, 380, 90, 0xff6f00).setStrokeStyle(5, 0xFFD700);
-    this.add.text(W/2, H*0.91, "ИГРАТЬ!", { fontSize:"52px", color:"#fff", stroke:"#000", strokeThickness:7, fontStyle:"bold" }).setOrigin(0.5);
+    this.nameText = this.add.text(W/2, H*0.765, "", {
+      fontSize:"28px", color:"#fff", stroke:"#000", strokeThickness:5
+    }).setOrigin(0.5);
+    this.refreshPlayerNameText();
+
+    this.drawLeaderboard();
+
+    const btn = this.add.rectangle(W/2, H*0.93, 380, 90, 0xff6f00).setStrokeStyle(5, 0xFFD700).setInteractive({ useHandCursor: true });
+    this.add.text(W/2, H*0.93, "ИГРАТЬ!", { fontSize:"52px", color:"#fff", stroke:"#000", strokeThickness:7, fontStyle:"bold" }).setOrigin(0.5);
     this.tweens.add({ targets:btn, scaleX:1.04, scaleY:1.04, duration:700, yoyo:true, repeat:-1 });
-    this.input.on("pointerdown", () => this.scene.start("GameScene"));
+    btn.on("pointerdown", () => this.openNameModal());
+  }
+
+  refreshPlayerNameText() {
+    const currentName = this.registry.get("playerName") || getSavedPlayerName() || "Не указано";
+    this.nameText.setText(`Игрок: ${currentName}`);
+  }
+
+  drawLeaderboard() {
+    const { width: W, height: H } = this.scale;
+    const boardX = W / 2;
+    const boardY = H * 0.80;
+    this.add.rectangle(boardX, boardY, 540, 220, 0x000000, 0.45).setStrokeStyle(4, 0xFFD700);
+    this.add.text(boardX, boardY - 86, "🏆 ТОП ИГРОКОВ", {
+      fontSize:"34px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    }).setOrigin(0.5);
+
+    const rows = loadLeaderboard();
+    if (!rows.length) {
+      this.add.text(boardX, boardY, "Пока нет результатов\nСтань первым в рейтинге!", {
+        fontSize:"28px", align:"center", color:"#fff", stroke:"#000", strokeThickness:4
+      }).setOrigin(0.5);
+      return;
+    }
+
+    rows.slice(0, 5).forEach((row, index) => {
+      const y = boardY - 42 + index * 34;
+      const prefix = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index+1}.`;
+      this.add.text(boardX - 220, y, `${prefix} ${row.name}`, {
+        fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:4
+      }).setOrigin(0, 0.5);
+      this.add.text(boardX + 220, y, `${row.score}`, {
+        fontSize:"24px", color:"#7CFF00", stroke:"#000", strokeThickness:4, fontStyle:"bold"
+      }).setOrigin(1, 0.5);
+    });
+  }
+
+  openNameModal() {
+    const modal = document.getElementById("name-modal");
+    const input = document.getElementById("player-name-input");
+    const startBtn = document.getElementById("start-game-btn");
+    const cancelBtn = document.getElementById("cancel-name-btn");
+    if (!modal || !input || !startBtn || !cancelBtn) {
+      this.scene.start("GameScene");
+      return;
+    }
+
+    const currentName = this.registry.get("playerName") || getSavedPlayerName();
+    input.value = currentName || "";
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 0);
+
+    const closeModal = () => {
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+      startBtn.onclick = null;
+      cancelBtn.onclick = null;
+      input.onkeydown = null;
+    };
+
+    const startGame = () => {
+      const finalName = savePlayerName(input.value || "Игрок");
+      this.registry.set("playerName", finalName || "Игрок");
+      closeModal();
+      this.scene.start("GameScene", { playerName: finalName || "Игрок" });
+    };
+
+    startBtn.onclick = startGame;
+    cancelBtn.onclick = closeModal;
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") startGame();
+      if (e.key === "Escape") closeModal();
+    };
   }
 }
 
-// ══════════════════════════════════════════════
-//  ИГРА
-// ══════════════════════════════════════════════
 class GameScene extends Phaser.Scene {
   constructor() { super("GameScene"); }
 
-  init() {
+  init(data) {
+    this.playerName  = sanitizePlayerName(data?.playerName || this.registry.get("playerName") || getSavedPlayerName() || "Игрок") || "Игрок";
     this.score       = 0;
     this.lives       = 3;
     this.timeLeft    = 60;
@@ -91,6 +237,7 @@ class GameScene extends Phaser.Scene {
     this.isHolding   = false;
     this.chargeX     = 0;
     this.chargeY     = 0;
+    this.finalRankPosition = null;
   }
 
   create() {
@@ -100,17 +247,14 @@ class GameScene extends Phaser.Scene {
     this.birds   = this.physics.add.group();
     this.bullets = this.physics.add.group();
 
-    // Пушка
     this.gun = this.add.image(W/2, H - 60, "gun");
     this.gunBaseScale = 0.275;
     this.gun.setOrigin(0.5, 0.90).setScale(this.gunBaseScale);
 
-    // Индикатор заряда (шкала под пушкой)
     this.chargeBarBg = this.add.rectangle(W/2, H - 18, 320, 18, 0x333333, 0.7).setDepth(10);
     this.chargeBar   = this.add.rectangle(W/2 - 160, H - 18, 0, 14, 0x00e5ff, 1).setOrigin(0, 0.5).setDepth(11);
     this.chargeLabel = this.add.text(W/2, H - 18, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:3 }).setOrigin(0.5).setDepth(12);
 
-    // Иконка промахов (3 черепа = потеря жизни)
     this.missIcons = [];
     for(let i = 0; i < 3; i++) {
       const ic = this.add.text(W/2 - 42 + i*42, H - 48, "✕", {
@@ -119,14 +263,15 @@ class GameScene extends Phaser.Scene {
       this.missIcons.push(ic);
     }
 
-    // HUD
     this.add.rectangle(W/2, 60, W, 120, 0x5d4037, 0.88);
     this.add.rectangle(W/2, 60, W-4, 116, 0x6d4c41, 0.5);
     this.timeText  = this.add.text(24, 20, "⏱ 60", { fontSize:"44px", color:"#FFD700", stroke:"#000", strokeThickness:6 });
     this.scoreText = this.add.text(W/2, 20, "SCORE: 0", { fontSize:"44px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5, 0);
     this.livesText = this.add.text(W-20, 20, "❤❤❤", { fontSize:"38px", color:"#ff4d4d", stroke:"#000", strokeThickness:5 }).setOrigin(1, 0);
+    this.playerText = this.add.text(24, 72, `Игрок: ${this.playerName}`, {
+      fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:4
+    });
 
-    // Счётчик серии попаданий (супер-выстрел)
     this.hitIcons = [];
     for(let i = 0; i < 3; i++) {
       const ic = this.add.text(W/2 + 90 + i*38, H - 48, "◎", {
@@ -140,14 +285,12 @@ class GameScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.bullets, this.birds, this.handleBulletHitBird, null, this);
 
-    // ── ЗАЖАТИЕ: pointerdown начинает заряд, pointerup — стреляет ──
     this.input.on("pointerdown", (p) => {
       if(this.isGameOver) return;
       this.isHolding = true;
       this.holdStart = this.time.now;
       this.chargeX   = p.x;
       this.chargeY   = p.y;
-      // Поворот пушки сразу при зажатии
       const angle = Phaser.Math.Angle.Between(this.gun.x, this.gun.y, p.x, p.y);
       this.gun.setRotation(angle + Math.PI/2);
     });
@@ -160,10 +303,10 @@ class GameScene extends Phaser.Scene {
       this.gun.setRotation(angle + Math.PI/2);
     });
 
-    this.input.on("pointerup", (p) => {
+    this.input.on("pointerup", () => {
       if(!this.isHolding || this.isGameOver) return;
       this.isHolding = false;
-      const held = this.time.now - this.holdStart; // мс
+      const held = this.time.now - this.holdStart;
       this.shoot(this.chargeX, this.chargeY, held);
       this.chargeBar.width = 0;
       this.chargeLabel.setText("");
@@ -177,13 +320,11 @@ class GameScene extends Phaser.Scene {
     if(this.isGameOver) return;
     const { width:W, height:H } = this.scale;
 
-    // Анимация шкалы заряда
     if(this.isHolding) {
       const held = this.time.now - this.holdStart;
-      const t    = Math.min(held / 1500, 1); // макс заряд за 1.5 сек
+      const t    = Math.min(held / 1500, 1);
       const barW = Math.round(t * 320);
       this.chargeBar.width = barW;
-      // Цвет: синий → жёлтый → красный
       const color = t < 0.5
         ? Phaser.Display.Color.Interpolate.ColorWithColor({r:0,g:229,b:255}, {r:255,g:220,b:0}, 100, Math.round(t*200))
         : Phaser.Display.Color.Interpolate.ColorWithColor({r:255,g:220,b:0}, {r:255,g:60,b:0},  100, Math.round((t-0.5)*200));
@@ -192,7 +333,6 @@ class GameScene extends Phaser.Scene {
       this.chargeLabel.setText(t < 0.05 ? "" : `${speed} px/s`);
     }
 
-    // Удаляем улетевшие пули — копируем в массив чтобы destroy() не ломал итератор
     const bulletList = this.bullets.children.entries.slice();
     for(const b of bulletList) {
       if(!b.active || b.counted) continue;
@@ -203,8 +343,6 @@ class GameScene extends Phaser.Scene {
       }
     }
 
-    // Птицы улетели — просто удаляем (жизнь НЕ снимаем)
-    // Копируем в массив чтобы destroy() не ломал итератор
     const birdList = this.birds.children.entries.slice();
     for(const bird of birdList) {
       if(!bird.active) continue;
@@ -215,8 +353,6 @@ class GameScene extends Phaser.Scene {
   }
 
   getGunMuzzle() {
-    // Локальная точка дула относительно origin(0.5, 0.90).
-    // PNG бластера направлен вверх, поэтому дуло находится высоко над точкой опоры.
     const localX = 0;
     const localY = -this.gun.displayHeight * 0.68;
     const cos = Math.cos(this.gun.rotation);
@@ -227,21 +363,19 @@ class GameScene extends Phaser.Scene {
     };
   }
 
-  // ── ВЫСТРЕЛ: held — время зажатия в мс ──
   shoot(tx, ty, held) {
     const { x: gx, y: gy } = this.getGunMuzzle();
     const t  = Math.min(held / 1500, 1);
     const speed = 600 + t * 1400;
 
     if(this.superReady) {
-      // ── СУПЕР-ВЫСТРЕЛ: 3 снаряда с рассеиванием ──
       this.superReady = false;
       this.superLabel.setText("");
       for(let i=0;i<3;i++) { this.hitIcons[i].setColor("#555"); this.hitIcons[i].setText("◎"); }
 
       const baseAngle = Phaser.Math.Angle.Between(gx, gy, tx, ty);
-      const spread    = [-0.18, 0, 0.18]; // рассеивание в радианах (~10°)
-      spread.forEach((offset, idx) => {
+      const spread    = [-0.18, 0, 0.18];
+      spread.forEach((offset) => {
         const ang = baseAngle + offset;
         const b = this.bullets.create(gx, gy, "bullet");
         b.setScale(0.16).setTint(0xFFD700);
@@ -251,7 +385,6 @@ class GameScene extends Phaser.Scene {
         this.spawnTrail(b, 0xFFD700, 8);
       });
 
-      // Мощная отдача без скачка размера
       this.tweens.killTweensOf(this.gun);
       this.gun.setScale(this.gunBaseScale);
       this.tweens.add({
@@ -263,14 +396,13 @@ class GameScene extends Phaser.Scene {
         onComplete:() => this.gun.setScale(this.gunBaseScale)
       });
 
-      // Вспышка-кольцо у дула
       const ring = this.add.circle(gx, gy, 8, 0xFFD700, 0.9);
       this.tweens.add({ targets:ring, scaleX:6, scaleY:6, alpha:0, duration:300, onComplete:()=>ring.destroy() });
       return;
     }
 
     const bullet = this.bullets.create(gx, gy, "bullet");
-    bullet.setScale(0.12 + t * 0.12);
+    bullet.setScale(0.06 + t * 0.06);
     this.physics.moveTo(bullet, tx, ty, speed);
     const trailColor = t < 0.5 ? 0x00e5ff : (t < 0.8 ? 0xffcc00 : 0xff4400);
     this.spawnTrail(bullet, trailColor, Math.round((0.6 + t * 0.6) * 6));
@@ -296,11 +428,9 @@ class GameScene extends Phaser.Scene {
     }});
   }
 
-  // ── ПРОМАХ — пуля улетела за экран ──
   registerMiss() {
     if(this.isGameOver) return;
     this.missStreak++;
-    // Подсвечиваем иконки промахов
     for(let i = 0; i < 3; i++) {
       this.missIcons[i].setColor(i < this.missStreak ? "#ff4444" : "#888");
     }
@@ -330,9 +460,6 @@ class GameScene extends Phaser.Scene {
     bird.setScale(scale);
     bird.points   = points;
     bird.isDanger = isDanger;
-    // Текущие PNG птиц нарисованы головой вправо:
-    // side=0 (летит слева направо): flipX не нужен
-    // side=1 (летит справа налево): отражаем по X
     bird.setFlipX(side===1);
     this.physics.moveTo(bird, targetX, targetY, speed);
     this.tweens.add({ targets:bird, y:bird.y+Phaser.Math.Between(-30,30), duration:Phaser.Math.Between(450,850), yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
@@ -347,14 +474,12 @@ class GameScene extends Phaser.Scene {
     bullet.destroy();
     bird.destroy();
 
-    // Попал в чёрную птицу — минус жизнь!
     if(isDanger) {
       const skull = this.add.text(bx, by-20, "☠ -ЖИЗНЬ!", {
         fontSize:"52px", color:"#ff0000", stroke:"#000", strokeThickness:7, fontStyle:"bold"
       }).setOrigin(0.5).setDepth(20);
       this.tweens.add({ targets:skull, y:skull.y-90, alpha:0, duration:900, ease:"Quad.easeOut", onComplete:()=>skull.destroy() });
 
-      // Красная вспышка побольше
       const hit = this.add.image(bx, by, "hit").setScale(0.6).setTint(0xff0000);
       this.tweens.add({ targets:hit, alpha:0, scale:1.8, duration:400, onComplete:()=>hit.destroy() });
 
@@ -362,11 +487,9 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Обычное попадание
     this.missStreak = 0;
     for(let i=0;i<3;i++) this.missIcons[i].setColor("#888");
 
-    // Серия попаданий → супер-выстрел
     this.hitStreak++;
     for(let i=0;i<3;i++) {
       this.hitIcons[i].setColor(i < this.hitStreak ? "#FFD700" : "#555");
@@ -433,19 +556,51 @@ class GameScene extends Phaser.Scene {
     if(this.spawnEvent) this.spawnEvent.remove(false);
     if(this.timerEvent) this.timerEvent.remove(false);
 
+    const topBefore = loadLeaderboard();
+    this.finalRankPosition = getLeaderboardRank(this.score);
+    const updatedLeaderboard = addLeaderboardScore(this.playerName, this.score);
+    const isNewRecord = !topBefore.length || this.score >= topBefore[0].score;
+
     const { width:W, height:H } = this.scale;
-    this.add.rectangle(W/2,H/2,W,H,0x000000,0.65);
-    this.add.text(W/2,H/2-130,"GAME OVER",{ fontSize:"82px", color:"#ff4d4d", stroke:"#000", strokeThickness:12, fontStyle:"bold" }).setOrigin(0.5);
-    this.add.text(W/2,H/2-30,`SCORE: ${this.score}`,{ fontSize:"62px", color:"#FFD700", stroke:"#000", strokeThickness:8 }).setOrigin(0.5);
+    this.add.rectangle(W/2,H/2,W,H,0x000000,0.72);
+    this.add.text(W/2,H/2-170,"GAME OVER",{ fontSize:"82px", color:"#ff4d4d", stroke:"#000", strokeThickness:12, fontStyle:"bold" }).setOrigin(0.5);
+    this.add.text(W/2,H/2-88,`${this.playerName}`,{ fontSize:"42px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5);
+    this.add.text(W/2,H/2-20,`SCORE: ${this.score}`,{ fontSize:"62px", color:"#FFD700", stroke:"#000", strokeThickness:8 }).setOrigin(0.5);
+
     let rank="🐦 Новичок";
     if(this.score>=5000) rank="👑 Легенда";
     else if(this.score>=2500) rank="🏆 Мастер";
     else if(this.score>=1000) rank="🎯 Снайпер";
-    this.add.text(W/2,H/2+60,rank,{ fontSize:"42px", color:"#00e5ff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5);
-    const btn=this.add.rectangle(W/2,H/2+165,400,90,0xff6f00).setStrokeStyle(5,0xFFD700);
-    this.add.text(W/2,H/2+165,"ЕЩЁ РАЗ!",{ fontSize:"48px", color:"#fff", stroke:"#000", strokeThickness:7, fontStyle:"bold" }).setOrigin(0.5);
+    this.add.text(W/2,H/2+42,rank,{ fontSize:"42px", color:"#00e5ff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5);
+    this.add.text(W/2,H/2+94, isNewRecord ? "🔥 Новый рекорд!" : `Место в рейтинге: #${this.finalRankPosition}`, {
+      fontSize:"32px", color:isNewRecord ? "#FFD700" : "#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    }).setOrigin(0.5);
+
+    this.drawEndLeaderboard(updatedLeaderboard, W, H);
+
+    const btn=this.add.rectangle(W/2,H/2+330,400,90,0xff6f00).setStrokeStyle(5,0xFFD700).setInteractive({ useHandCursor: true });
+    this.add.text(W/2,H/2+330,"МЕНЮ",{ fontSize:"48px", color:"#fff", stroke:"#000", strokeThickness:7, fontStyle:"bold" }).setOrigin(0.5);
     this.tweens.add({ targets:btn, scaleX:1.05, scaleY:1.05, duration:600, yoyo:true, repeat:-1 });
-    this.input.once("pointerdown", ()=>this.scene.restart());
+    btn.on("pointerdown", ()=>this.scene.start("MenuScene"));
+  }
+
+  drawEndLeaderboard(rows, W, H) {
+    this.add.rectangle(W/2, H/2+205, 520, 190, 0x000000, 0.42).setStrokeStyle(4, 0xFFD700);
+    this.add.text(W/2, H/2+126, "ТОП 5", {
+      fontSize:"30px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    }).setOrigin(0.5);
+
+    rows.slice(0, 5).forEach((row, index) => {
+      const y = H/2 + 162 + index * 28;
+      const prefix = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index+1}.`;
+      const rowColor = row.name === this.playerName && row.score === this.score ? "#7CFF00" : "#fff";
+      this.add.text(W/2 - 210, y, `${prefix} ${row.name}`, {
+        fontSize:"22px", color:rowColor, stroke:"#000", strokeThickness:4
+      }).setOrigin(0, 0.5);
+      this.add.text(W/2 + 210, y, `${row.score}`, {
+        fontSize:"22px", color:rowColor, stroke:"#000", strokeThickness:4, fontStyle:"bold"
+      }).setOrigin(1, 0.5);
+    });
   }
 }
 
