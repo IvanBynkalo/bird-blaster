@@ -102,7 +102,8 @@ class GameScene extends Phaser.Scene {
 
     // Пушка
     this.gun = this.add.image(W/2, H - 60, "gun");
-    this.gun.setOrigin(0.5, 0.90).setScale(0.275);
+    this.gunBaseScale = 0.275;
+    this.gun.setOrigin(0.5, 0.90).setScale(this.gunBaseScale);
 
     // Индикатор заряда (шкала под пушкой)
     this.chargeBarBg = this.add.rectangle(W/2, H - 18, 320, 18, 0x333333, 0.7).setDepth(10);
@@ -237,8 +238,17 @@ class GameScene extends Phaser.Scene {
         this.spawnTrail(b, 0xFFD700, 8);
       });
 
-      // Мощная отдача
-      this.tweens.add({ targets:this.gun, scaleX:0.82, scaleY:0.82, duration:80, yoyo:true });
+      // Мощная отдача без скачка размера
+      this.tweens.killTweensOf(this.gun);
+      this.gun.setScale(this.gunBaseScale);
+      this.tweens.add({
+        targets:this.gun,
+        scaleX:this.gunBaseScale * 0.84,
+        scaleY:this.gunBaseScale * 0.84,
+        duration:80,
+        yoyo:true,
+        onComplete:() => this.gun.setScale(this.gunBaseScale)
+      });
 
       // Вспышка-кольцо у дула
       const ring = this.add.circle(gx, gy, 8, 0xFFD700, 0.9);
@@ -252,8 +262,17 @@ class GameScene extends Phaser.Scene {
     const trailColor = t < 0.5 ? 0x00e5ff : (t < 0.8 ? 0xffcc00 : 0xff4400);
     this.spawnTrail(bullet, trailColor, Math.round((0.6 + t * 0.6) * 6));
 
-    const kick = 0.94 - t * 0.08;
-    this.tweens.add({ targets:this.gun, scaleX:kick, scaleY:kick, duration:55, yoyo:true });
+    const kick = this.gunBaseScale * (0.94 - t * 0.08);
+    this.tweens.killTweensOf(this.gun);
+    this.gun.setScale(this.gunBaseScale);
+    this.tweens.add({
+      targets:this.gun,
+      scaleX:kick,
+      scaleY:kick,
+      duration:55,
+      yoyo:true,
+      onComplete:() => this.gun.setScale(this.gunBaseScale)
+    });
   }
 
   spawnTrail(bullet, color, radius) {
