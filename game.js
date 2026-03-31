@@ -56,13 +56,13 @@ class MenuScene extends Phaser.Scene {
       { key:"birdGold",  pts:"300", x:W*0.82, label:"Бонусная" },
     ];
     birds.forEach(({ key, pts, x, label }) => {
-      const img = this.add.image(x, H*0.48, key).setScale(0.28);
+      const img = this.add.image(x, H*0.48, key).setScale(0.18);
       this.tweens.add({ targets:img, y:H*0.48-14, duration:900+Math.random()*400, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
       this.add.text(x, H*0.57, `+${pts}`, { fontSize:"38px", color:"#FFD700", stroke:"#000", strokeThickness:5 }).setOrigin(0.5);
       this.add.text(x, H*0.62, label,    { fontSize:"26px", color:"#fff",    stroke:"#000", strokeThickness:4 }).setOrigin(0.5);
     });
 
-    const gun = this.add.image(W/2, H*0.80, "gun").setScale(0.55);
+    const gun = this.add.image(W/2, H*0.80, "gun").setScale(0.15);
     this.tweens.add({ targets:gun, y:H*0.80-8, duration:1200, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
     this.add.text(W/2, H*0.73, "ТАП = ВЫСТРЕЛ", { fontSize:"38px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5);
 
