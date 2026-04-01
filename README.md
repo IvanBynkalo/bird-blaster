@@ -39,6 +39,37 @@ npx serve .
 
 ## История обновлений
 
+### v15.1 — Firebase подключён
+- в `firebase-config.js` встроены рабочие настройки проекта Firebase `bird-blaster`
+- глобальный рейтинг включён по умолчанию (`window.BIRD_BLASTER_ENABLE_GLOBAL_LEADERBOARD = true`)
+- игра использует Firestore-коллекцию `leaderboard`
+- если Firebase недоступен, игра по-прежнему автоматически откатывается на локальный рейтинг
+- для работы на всех устройствах нужно в Firebase создать Firestore Database и опубликовать правила доступа
+
+#### Что ещё сделать в Firebase Console
+1. Открой **Firestore Database**
+2. Нажми **Create database**
+3. Временно выбери **Start in test mode** или опубликуй свои правила
+4. Для простого старта можно использовать такие правила:
+
+```txt
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /leaderboard/{doc} {
+      allow read: if true;
+      allow create: if
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 20 &&
+        request.resource.data.score is number &&
+        request.resource.data.score >= 0;
+      allow update, delete: if false;
+    }
+  }
+}
+```
+
 ### v15 — Juice эффекты и история в README
 - обновлён `README.md` с историей версий
 - добавлены более сочные эффекты выстрелов
