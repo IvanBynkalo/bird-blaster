@@ -11,8 +11,8 @@ const SHOP_ITEMS = {
 const GAME_MODE_KEY = "bird_blaster_mode_v1";
 const MISSION_STATE_KEY = "bird_blaster_missions_v1";
 const GAME_MODES = {
-  classic: { id: "classic", title: "КЛАССИКА", time: 60, lives: 3 },
-  timeAttack: { id: "timeAttack", title: "НА ВРЕМЯ", time: 45, lives: 2 }
+  classic: { id: "classic", title: "КЛАССИКА", time: 0, lives: 3 },
+  timeAttack: { id: "timeAttack", title: "НА ВРЕМЯ", time: 60, lives: 2 }
 };
 const MISSIONS = [
   { id: "hits50", title: "Сбей 50 птиц", goal: 50, reward: 100, stat: "totalHits" },
@@ -474,16 +474,16 @@ class MenuScene extends Phaser.Scene {
     const gun = this.add.image(W/2, H*0.59, "gun").setScale(0.235).setDepth(4);
     this.tweens.add({ targets:gun, y:H*0.59-8, duration:1200, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
 
-    this.nameCard = this.add.rectangle(W/2, H*0.665, 420, 54, 0x000000, 0.42).setStrokeStyle(3, 0x00e5ff, 0.8).setDepth(3);
-    this.nameText = this.add.text(W/2, H*0.665, "", {
-      fontSize:"26px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    this.playerChip = this.add.rectangle(W*0.28, H*0.662, 248, 52, 0x000000, 0.46).setStrokeStyle(3, 0x00e5ff, 0.85).setDepth(3);
+    this.nameText = this.add.text(W*0.28, H*0.662, "", {
+      fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
 
-    this.modeBtn = this.add.rectangle(W*0.26, H*0.742, 240, 68, 0x1565c0).setStrokeStyle(5, 0xFFD700).setInteractive({ useHandCursor: true }).setDepth(3);
-    this.modeText = this.add.text(W*0.26, H*0.742, "", { fontSize:"23px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
+    this.modeBtn = this.add.rectangle(W*0.74, H*0.662, 248, 52, 0x1565c0).setStrokeStyle(4, 0xFFD700).setInteractive({ useHandCursor: true }).setDepth(3);
+    this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.75, H*0.742, "v11 UI", { fontSize:"28px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v11.1", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
@@ -501,7 +501,7 @@ class MenuScene extends Phaser.Scene {
 
   refreshPlayerNameText() {
     const currentName = this.registry.get("playerName") || getSavedPlayerName() || "Не указано";
-    this.nameText.setText(`Игрок: ${currentName}`);
+    this.nameText.setText(`👤 ${currentName}`);
   }
 
   refreshCoinsText() {
@@ -529,41 +529,44 @@ class MenuScene extends Phaser.Scene {
     const missions = getMissionRows();
     this.registry.set("missions", missions);
     missions.forEach((mission, index) => {
-      const y = this.boardY + 98 + index * 34;
+      const y = this.boardY + 116 + index * 42;
       const done = mission.claimed;
-      const color = done ? "#7CFF00" : "#fff";
-      const label = `${done ? "✅" : "•"} ${mission.title}`;
-      const progress = done ? `+${mission.reward} взято` : `${mission.value}/${mission.goal}  (+${mission.reward})`;
-      const left = this.add.text(this.boardX - 250, y, label, {
-        fontSize:"18px", color, stroke:"#000", strokeThickness:4
+      const card = this.add.rectangle(this.boardX, y, 524, 34, done ? 0x143c14 : 0x102238, 0.72)
+        .setStrokeStyle(2, done ? 0x7CFF00 : 0x3ab4ff, 0.9).setDepth(3.5);
+      const label = `${done ? "✅" : "🎯"} ${mission.title}`;
+      const progress = done ? `+${mission.reward} взято` : `${mission.value}/${mission.goal}  •  +${mission.reward}`;
+      const left = this.add.text(this.boardX - 246, y, label, {
+        fontSize:"17px", color: done ? "#b9ffb9" : "#fff", stroke:"#000", strokeThickness:4
       }).setOrigin(0, 0.5).setDepth(4);
-      const right = this.add.text(this.boardX + 250, y, progress, {
-        fontSize:"18px", color: done ? "#7CFF00" : "#FFD700", stroke:"#000", strokeThickness:4, fontStyle:"bold"
+      const right = this.add.text(this.boardX + 246, y, progress, {
+        fontSize:"16px", color: done ? "#7CFF00" : "#FFD700", stroke:"#000", strokeThickness:4, fontStyle:"bold"
       }).setOrigin(1, 0.5).setDepth(4);
-      this.missionTexts.push(left, right);
+      this.missionTexts.push(card, left, right);
     });
   }
 
   drawLeaderboardShell() {
     const { width: W, height: H } = this.scale;
     const boardX = W / 2;
-    const boardY = H * 0.83;
+    const boardY = H * 0.818;
     this.boardX = boardX;
     this.boardY = boardY;
 
-    this.boardPanel = this.add.rectangle(boardX, boardY, 560, 238, 0x000000, 0.46).setStrokeStyle(4, 0xFFD700);
-    this.boardTitle = this.add.text(boardX, boardY - 94, "🏆 ТОП ИГРОКОВ", {
-      fontSize:"30px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    this.boardPanel = this.add.rectangle(boardX, boardY, 580, 282, 0x05111f, 0.58).setStrokeStyle(4, 0xFFD700).setDepth(3);
+    this.boardHeader = this.add.rectangle(boardX, boardY - 110, 540, 44, 0x4a2d14, 0.9).setStrokeStyle(2, 0xFFD700).setDepth(3.2);
+    this.boardTitle = this.add.text(boardX, boardY - 110, "🏆 ТОП 5", {
+      fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
-    this.boardModeText = this.add.text(boardX, boardY - 66, LeaderboardService.statusLabel, {
-      fontSize:"17px", color:"#00e5ff", stroke:"#000", strokeThickness:4, fontStyle:"bold"
+    this.boardModeText = this.add.text(boardX, boardY - 82, LeaderboardService.statusLabel, {
+      fontSize:"16px", color:"#7de3ff", stroke:"#000", strokeThickness:4, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
-    this.boardLoadingText = this.add.text(boardX, boardY - 6, "Загрузка рейтинга...", {
-      fontSize:"24px", align:"center", color:"#fff", stroke:"#000", strokeThickness:4
+    this.boardLoadingText = this.add.text(boardX, boardY - 34, "Загрузка рейтинга...", {
+      fontSize:"22px", align:"center", color:"#fff", stroke:"#000", strokeThickness:4
     }).setOrigin(0.5).setDepth(4);
 
-    this.missionTitle = this.add.text(boardX, boardY + 64, "🎯 МИССИИ", {
-      fontSize:"28px", color:"#00e5ff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    this.missionDivider = this.add.line(boardX, boardY + 6, -248, 0, 248, 0, 0x3ab4ff, 0.65).setLineWidth(2, 2).setDepth(3.2);
+    this.missionTitle = this.add.text(boardX, boardY + 28, "🎯 МИССИИ", {
+      fontSize:"26px", color:"#00e5ff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
     this.missionTexts = [];
     this.refreshMissionTexts();
@@ -768,7 +771,7 @@ class GameScene extends Phaser.Scene {
 
     this.topBar = this.add.rectangle(W/2, 60, W, 120, 0x5d4037, 0.88);
     this.topBarInner = this.add.rectangle(W/2, 60, W-4, 116, 0x6d4c41, 0.5);
-    this.timeText  = this.add.text(24, 20, `⏱ ${this.timeLeft}`, { fontSize:"44px", color:"#FFD700", stroke:"#000", strokeThickness:6 });
+    this.timeText  = this.add.text(24, 20, this.modeId === "classic" ? `⏱ ∞` : `⏱ ${this.timeLeft}`, { fontSize:"44px", color:"#FFD700", stroke:"#000", strokeThickness:6 });
     this.scoreText = this.add.text(W/2, 20, "SCORE: 0", { fontSize:"44px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5, 0);
     this.modeHudText = this.add.text(W/2, 112, this.mode.title, { fontSize:"22px", color:"#00e5ff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5,0);
     this.comboText = this.add.text(W/2, 72, "", { fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0);
@@ -776,6 +779,10 @@ class GameScene extends Phaser.Scene {
     this.waveSubText = this.add.text(W/2, 174, "", { fontSize:"18px", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5, 0);
     this.bossHpText = this.add.text(W/2, 202, "", { fontSize:"28px", color:"#ff8a65", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0).setVisible(false);
     this.themeNameText = this.add.text(W/2, 228, "", { fontSize:"18px", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5, 0);
+    this.waveBonusBg = this.add.rectangle(W/2, 274, 520, 72, 0x000000, 0.52).setStrokeStyle(3, 0xFFD700, 0.9).setDepth(5);
+    this.waveBonusText = this.add.text(W/2, 244, "", { fontSize:"22px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5, 0).setDepth(6);
+    this.survivalBonusText = this.add.text(W/2, 272, "", { fontSize:"18px", color:"#ffffff", stroke:"#000", strokeThickness:4, fontStyle:"bold", align:"center" }).setOrigin(0.5, 0).setDepth(6);
+    this.waveProgressText = this.add.text(W/2, 298, "", { fontSize:"18px", color:"#ffffff", stroke:"#000", strokeThickness:4, fontStyle:"bold", align:"center" }).setOrigin(0.5, 0).setDepth(6);
     this.livesText = this.add.text(W-20, 20, "❤❤❤", { fontSize:"38px", color:"#ff4d4d", stroke:"#000", strokeThickness:5 }).setOrigin(1, 0);
     this.playerText = this.add.text(24, 132, `Игрок: ${this.playerName}`, {
       fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:4
@@ -834,7 +841,11 @@ class GameScene extends Phaser.Scene {
 
     this.applyWaveTheme(this.getThemeForWaveProfile("balanced"), { silent: true });
     this.startWave(1);
-    this.timerEvent = this.time.addEvent({ delay:1000, callback:this.updateGameTimer, callbackScope:this, loop:true });
+    if (this.modeId === "timeAttack") {
+      this.timerEvent = this.time.addEvent({ delay:1000, callback:this.updateGameTimer, callbackScope:this, loop:true });
+    } else {
+      this.timerEvent = null;
+    }
   }
 
   update(time, delta) {
@@ -873,15 +884,16 @@ class GameScene extends Phaser.Scene {
     }
 
     this.checkWaveProgress();
+    this.updateWaveHud();
     this.updateWeatherLayer(delta || 16);
   }
 
   getWaveProfile(index) {
     const cycle = (index - 1) % 4;
-    if (cycle === 0) return { id: "balanced", label: "Сбалансированная стая", weights: { blue: 56, red: 22, black: 10, gold: 12 } };
-    if (cycle === 1) return { id: "speed", label: "Шторм быстрых птиц", weights: { blue: 35, red: 45, black: 10, gold: 10 } };
-    if (cycle === 2) return { id: "gold", label: "Золотая лихорадка", weights: { blue: 28, red: 18, black: 8, gold: 46 } };
-    return { id: "shadow", label: "Теневая волна", weights: { blue: 34, red: 24, black: 26, gold: 16 } };
+    if (cycle === 0) return { id: "balanced", label: "Базовая волна", bonus: "+0% очков", weights: { blue: 58, red: 22, black: 10, gold: 10 }, scoreMult: 1, speedMult: 1 };
+    if (cycle === 1) return { id: "speed", label: "Шторм", bonus: "+20% очков • быстрые птицы", weights: { blue: 34, red: 46, black: 10, gold: 10 }, scoreMult: 1.2, speedMult: 1.18 };
+    if (cycle === 2) return { id: "gold", label: "Золотая волна", bonus: "много золотых птиц", weights: { blue: 24, red: 16, black: 8, gold: 52 }, scoreMult: 1.15, speedMult: 1.05 };
+    return { id: "shadow", label: "Ночная волна", bonus: "+35% очков • длиннее комбо", weights: { blue: 34, red: 24, black: 24, gold: 18 }, scoreMult: 1.35, speedMult: 1.12 };
   }
 
   getAliveBirdCount(includeBoss = true) {
@@ -976,7 +988,10 @@ class GameScene extends Phaser.Scene {
     if (this.waveSubText) this.waveSubText.setColor(theme.subAccent);
     if (this.modeHudText) this.modeHudText.setColor(theme.accent);
     if (this.themeNameText) this.themeNameText.setText(`ТЕМА: ${theme.name}`).setColor(theme.subAccent);
+    if (this.waveBonusText) this.waveBonusText.setColor(theme.accent);
+    if (this.survivalBonusText) this.survivalBonusText.setColor(theme.subAccent);
     this.buildWeatherLayer(theme);
+    this.updateWaveHud();
     if (!options.silent) {
       const label = this.add.text(this.scale.width / 2, 246, `${theme.name}`, {
         fontSize:"24px", color:theme.subAccent, stroke:"#000", strokeThickness:5, fontStyle:"bold"
@@ -1016,32 +1031,67 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  getSurvivalBonusMultiplier(waveIndex = this.waveIndex || 1) {
+    return waveIndex >= 8 ? 2 : waveIndex >= 6 ? 1.5 : 1;
+  }
+
+  getNextSurvivalBonusTarget(waveIndex = this.waveIndex || 1) {
+    if (waveIndex < 6) return { wave: 6, mult: 1.5 };
+    if (waveIndex < 8) return { wave: 8, mult: 2 };
+    return null;
+  }
+
+  updateWaveHud() {
+    if (!this.waveProfile) return;
+    const currentMult = this.getSurvivalBonusMultiplier(this.waveIndex);
+    const nextTarget = this.getNextSurvivalBonusTarget(this.waveIndex);
+    const cleared = Math.max(0, this.waveBirdSpawned - this.getAliveBirdCount(false));
+    const total = Math.max(1, this.waveBirdTarget || 1);
+    const remaining = Math.max(0, total - cleared);
+    this.waveText.setText(`🌊 WAVE ${this.waveIndex}`);
+    this.waveSubText.setText(`${this.waveProfile.label} • ${this.waveProfile.bonus || this.currentTheme?.name || ""}`);
+    if (this.waveBonusText) this.waveBonusText.setText(`БОНУС СЕЙЧАС: ${this.waveProfile.bonus || 'без бонуса'}`);
+    if (this.survivalBonusText) {
+      const nextText = nextTarget
+        ? `ФИНАЛЬНЫЙ БОНУС: x${currentMult} • на WAVE ${nextTarget.wave} будет x${nextTarget.mult}`
+        : `ФИНАЛЬНЫЙ БОНУС: x${currentMult} • максимум достигнут`;
+      this.survivalBonusText.setText(nextText);
+    }
+    if (this.waveProgressText) {
+      this.waveProgressText.setText(`ПРОГРЕСС ВОЛНЫ: ${cleared}/${total} • осталось ${remaining}`);
+    }
+    if (this.waveBonusBg) {
+      const baseColor = this.currentTheme?.panel || 0x6d4c41;
+      this.waveBonusBg.setFillStyle(baseColor, 0.62);
+      this.waveBonusBg.setStrokeStyle(3, Phaser.Display.Color.HexStringToColor((this.currentTheme?.accent || '#FFD700')).color, 0.95);
+    }
+  }
+
   startWave(index) {
     if (this.isGameOver) return;
     this.waveIndex = index;
     this.waveInTransition = false;
     this.waveProfile = this.getWaveProfile(index);
     this.applyWaveTheme(this.getThemeForWaveProfile(this.waveProfile.id));
-    const modeBonus = this.modeId === "timeAttack" ? -1 : 0;
-    this.waveBirdTarget = Math.max(6, 7 + index * 2 + modeBonus);
+    const modeBonus = this.modeId === "timeAttack" ? -4 : 0;
+    this.waveBirdTarget = Math.max(this.modeId === "timeAttack" ? 14 : 18, 18 + index * 5 + modeBonus);
     this.waveBirdSpawned = 0;
     this.bossSpawnedThisWave = false;
     this.bossActive = false;
     this.bossBird = null;
     const pressureFactor = this.timePressureLevel === 2 ? 140 : this.timePressureLevel === 1 ? 80 : 0;
-    this.spawnDelayCurrent = Math.max(380, (this.modeId === "timeAttack" ? 930 : 1040) - index * 55 - pressureFactor);
-    this.speedWaveMultiplier = 1 + (index - 1) * 0.1 + (this.modeId === "timeAttack" ? 0.06 : 0) + this.timePressureLevel * 0.06;
-    this.waveText.setText(`🌊 WAVE ${index}`);
-    this.waveSubText.setText(`${this.waveProfile.label} • ${this.currentTheme?.name || ""}`);
+    this.spawnDelayCurrent = Math.max(620, (this.modeId === "timeAttack" ? 1080 : 1320) - index * 34 - pressureFactor);
+    this.speedWaveMultiplier = (this.waveProfile?.speedMult || 1) + (index - 1) * 0.045 + (this.modeId === "timeAttack" ? 0.08 : 0) + this.timePressureLevel * 0.04;
     this.bossHpText.setVisible(false).setText("");
-    this.showWaveBanner(`WAVE ${index}`, this.waveProfile.label);
+    this.updateWaveHud();
+    this.showWaveBanner(`WAVE ${index}`, `${this.waveProfile.label} · ${this.waveProfile.bonus || ""}`);
     this.setSpawnDelay(this.spawnDelayCurrent);
   }
 
   scheduleNextWave(delay = 1200) {
     if (this.isGameOver || this.waveInTransition) return;
     this.waveInTransition = true;
-    this.showWaveBanner("WAVE CLEAR", `Готовься к wave ${this.waveIndex + 1}`);
+    this.showWaveBanner("WAVE CLEAR", `Следующая волна: ${this.waveIndex + 1}`);
     this.time.delayedCall(delay, () => {
       if (this.isGameOver) return;
       this.startWave(this.waveIndex + 1);
@@ -1049,7 +1099,7 @@ class GameScene extends Phaser.Scene {
   }
 
   shouldSpawnBossThisWave() {
-    return this.waveIndex > 0 && this.waveIndex % 3 === 0;
+    return this.waveIndex > 0 && this.waveIndex % 4 === 0;
   }
 
   spawnBoss() {
@@ -1061,8 +1111,8 @@ class GameScene extends Phaser.Scene {
     const boss = this.birds.create(startLeft ? 120 : W - 120, Phaser.Math.Between(260, 400), this.waveIndex % 2 === 0 ? "birdBlack" : "birdGold");
     boss.setScale(0.28);
     boss.isBoss = true;
-    boss.points = 1000 + this.waveIndex * 250;
-    boss.hp = 8 + this.waveIndex * 2 + (this.modeId === "timeAttack" ? 2 : 0);
+    boss.points = 1500 + this.waveIndex * 300;
+    boss.hp = 7 + this.waveIndex * 2 + (this.modeId === "timeAttack" ? 2 : 0);
     boss.maxHp = boss.hp;
     boss.setFlipX(!startLeft);
     boss.body.allowGravity = false;
@@ -1106,7 +1156,7 @@ class GameScene extends Phaser.Scene {
       if (this.shouldSpawnBossThisWave() && !this.bossSpawnedThisWave) {
         this.spawnBoss();
       } else if (!this.shouldSpawnBossThisWave() || this.bossSpawnedThisWave) {
-        this.scheduleNextWave(this.bossSpawnedThisWave ? 1600 : 900);
+        this.scheduleNextWave(this.bossSpawnedThisWave ? 2200 : 1500);
       }
     }
   }
@@ -1257,9 +1307,9 @@ class GameScene extends Phaser.Scene {
   }
 
   getComboMultiplier() {
-    if (this.comboHits >= 12) return 5;
-    if (this.comboHits >= 8) return 3;
-    if (this.comboHits >= 4) return 2;
+    if (this.comboHits >= 20) return 5;
+    if (this.comboHits >= 10) return 3;
+    if (this.comboHits >= 5) return 2;
     return 1;
   }
 
@@ -1414,7 +1464,8 @@ class GameScene extends Phaser.Scene {
       }
 
       const runMult = this.doubleScoreActive ? 2 : 1;
-      const gained = pts * this.comboMult * runMult;
+      const waveMult = this.waveProfile?.scoreMult || 1;
+      const gained = Math.round(pts * this.comboMult * runMult * waveMult);
       this.score += gained;
       this.scoreText.setText(`SCORE: ${this.score}`);
       const bossPopup = this.add.text(bx, by-40, `👑 BOSS DOWN  +${gained}`, {
@@ -1473,7 +1524,8 @@ class GameScene extends Phaser.Scene {
     }
 
     const runMult = this.doubleScoreActive ? 2 : 1;
-    const gained = pts * this.comboMult * runMult;
+    const waveMult = this.waveProfile?.scoreMult || 1;
+    const gained = Math.round(pts * this.comboMult * runMult * waveMult);
     const color = this.comboMult >= 3 ? "#00e5ff" : (pts>=300?"#FFD700":"#7CFF00");
     const popupParts = [`+${gained}`];
     if (this.comboMult > 1) popupParts.push(`x${this.comboMult}`);
@@ -1490,14 +1542,14 @@ class GameScene extends Phaser.Scene {
   }
 
   updateGameTimer() {
-    if(this.isGameOver) return;
+    if(this.isGameOver || this.modeId !== "timeAttack") return;
     this.timeLeft--;
     this.timeText.setText(`⏱ ${this.timeLeft}`);
     if(this.timeLeft<=10) this.tweens.add({ targets:this.timeText, alpha:0.2, duration:200, yoyo:true });
     const newPressure = this.timeLeft <= 10 ? 2 : this.timeLeft <= 25 ? 1 : 0;
     if (newPressure !== this.timePressureLevel) {
       this.timePressureLevel = newPressure;
-      this.spawnDelayCurrent = Math.max(300, this.spawnDelayCurrent - (newPressure === 2 ? 140 : 70));
+      this.spawnDelayCurrent = Math.max(360, this.spawnDelayCurrent - (newPressure === 2 ? 120 : 60));
       if (this.spawnEvent) this.setSpawnDelay(this.spawnDelayCurrent);
     }
     if(this.timeLeft<=0)  this.endGame();
@@ -1536,28 +1588,35 @@ class GameScene extends Phaser.Scene {
     this.add.rectangle(W/2,H/2,W,H,0x000000,0.72);
     this.add.text(W/2,H/2-170,"GAME OVER",{ fontSize:"82px", color:"#ff4d4d", stroke:"#000", strokeThickness:12, fontStyle:"bold" }).setOrigin(0.5);
     this.add.text(W/2,H/2-88,`${this.playerName}`,{ fontSize:"42px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5);
-    this.add.text(W/2,H/2-20,`SCORE: ${this.score}`,{ fontSize:"62px", color:"#FFD700", stroke:"#000", strokeThickness:8 }).setOrigin(0.5);
+    const survivalMul = this.getSurvivalBonusMultiplier(this.waveIndex);
+    const finalScore = Math.round(this.score * survivalMul);
+    this.finalScore = finalScore;
+    this.add.text(W/2,H/2-20,`SCORE: ${finalScore}`,{ fontSize:"62px", color:"#FFD700", stroke:"#000", strokeThickness:8 }).setOrigin(0.5);
+    this.add.text(W/2,H/2+18,`ФИНАЛЬНЫЙ БОНУС ВОЛНЫ: x${survivalMul}`,{ fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5);
 
     let rank="🐦 Новичок";
-    if(this.score>=5000) rank="👑 Легенда";
-    else if(this.score>=2500) rank="🏆 Мастер";
-    else if(this.score>=1000) rank="🎯 Снайпер";
-    this.add.text(W/2,H/2+42,rank,{ fontSize:"42px", color:"#00e5ff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5);
+    if(finalScore>=5000) rank="👑 Легенда";
+    else if(finalScore>=2500) rank="🏆 Мастер";
+    else if(finalScore>=1000) rank="🎯 Снайпер";
+    this.add.text(W/2,H/2+62,rank,{ fontSize:"42px", color:"#00e5ff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5);
 
     const comboBonus = this.comboMult >= 5 ? 1.5 : this.comboMult >= 3 ? 1.2 : 1;
-    this.coinReward = Math.max(1, Math.floor(this.score / 10 * comboBonus));
+    this.coinReward = Math.max(1, Math.floor(finalScore / 10 * comboBonus));
     let totalCoins = addCoins(this.coinReward);
-    const missionUpdate = updateMissionProgress({ totalHits: this.sessionHits, totalScore: this.score, gamesPlayed: 1 });
+    const missionUpdate = updateMissionProgress({ totalHits: this.sessionHits, totalScore: finalScore, gamesPlayed: 1 });
     totalCoins = missionUpdate.coins;
     this.registry.set("coins", totalCoins);
     this.registry.set("missions", missionUpdate.missions);
-    this.add.text(W/2,H/2+86,`🪙 +${this.coinReward}   Всего: ${totalCoins}`,{ fontSize:"30px", color:"#FFD700", stroke:"#000", strokeThickness:5 }).setOrigin(0.5);
+    if (survivalMul > 1) {
+      this.add.text(W/2,H/2+78,`🌊 Бонус за выживание x${survivalMul}`,{ fontSize:"24px", color:"#7CFF00", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5);
+    }
+    this.add.text(W/2,H/2+110,`🪙 +${this.coinReward}   Всего: ${totalCoins}`,{ fontSize:"30px", color:"#FFD700", stroke:"#000", strokeThickness:5 }).setOrigin(0.5);
     if (missionUpdate.granted.length) {
       const msg = missionUpdate.granted.map((m) => `+${m.reward} ${m.title}`).join("   ");
-      this.add.text(W/2,H/2+116, `🎯 Миссия: ${msg}`, { fontSize:"22px", color:"#7CFF00", stroke:"#000", strokeThickness:4, align:"center" }).setOrigin(0.5);
+      this.add.text(W/2,H/2+144, `🎯 Миссия: ${msg}`, { fontSize:"22px", color:"#7CFF00", stroke:"#000", strokeThickness:4, align:"center" }).setOrigin(0.5);
     }
 
-    this.rankText = this.add.text(W/2,H/2+146, "Сохраняем результат...", {
+    this.rankText = this.add.text(W/2,H/2+176, "Сохраняем результат...", {
       fontSize:"30px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
     }).setOrigin(0.5);
 
@@ -1568,11 +1627,11 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({ targets:btn, scaleX:1.05, scaleY:1.05, duration:600, yoyo:true, repeat:-1 });
     btn.on("pointerdown", ()=>this.scene.start("MenuScene"));
 
-    const rows = await LeaderboardService.addScore(this.playerName, this.score);
+    const rows = await LeaderboardService.addScore(this.playerName, finalScore);
     const topRows = Array.isArray(rows) ? rows : [];
     const topBeforeScore = topRows.length ? topRows[0].score : 0;
-    this.finalRankPosition = await LeaderboardService.getRank(this.score);
-    const isNewRecord = topRows.length ? this.score >= topBeforeScore : true;
+    this.finalRankPosition = await LeaderboardService.getRank(finalScore);
+    const isNewRecord = topRows.length ? finalScore >= topBeforeScore : true;
 
     if (!this.scene.isActive()) return;
 
@@ -1611,7 +1670,7 @@ class GameScene extends Phaser.Scene {
     rows.slice(0, 5).forEach((row, index) => {
       const y = H/2 + 178 + index * 28;
       const prefix = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index+1}.`;
-      const rowColor = row.name === this.playerName && row.score === this.score ? "#7CFF00" : "#fff";
+      const rowColor = row.name === this.playerName && row.score === this.finalScore ? "#7CFF00" : "#fff";
       const left = this.add.text(W/2 - 210, y, `${prefix} ${row.name}`, {
         fontSize:"22px", color:rowColor, stroke:"#000", strokeThickness:4
       }).setOrigin(0, 0.5);
