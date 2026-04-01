@@ -12,6 +12,16 @@ const SHOP_ITEMS = {
   critTech: { id: "critTech", title: "Crit Tech", maxLevel: 5, basePrice: 450, step: 260 },
   luckyCase: { id: "luckyCase", title: "Lucky Case", price: 350 }
 };
+const BULLET_STYLE_KEY = "bird_blaster_bullet_style_v1";
+const BULLET_STYLES = [
+  { id: "classic", title: "Classic", texture: "bulletClassic" },
+  { id: "laser", title: "Laser", texture: "bulletLaser" },
+  { id: "ice", title: "Ice", texture: "bulletIce" },
+  { id: "flower", title: "Flower", texture: "bulletFlower" },
+  { id: "minion", title: "Minion", texture: "bulletMinion" },
+  { id: "rainbow", title: "Rainbow", texture: "bulletRainbow" },
+  { id: "plasma", title: "Plasma", texture: "bulletPlasma" }
+];
 const GAME_MODE_KEY = "bird_blaster_mode_v1";
 const MISSION_STATE_KEY = "bird_blaster_missions_v1";
 const GAME_MODES = {
@@ -145,6 +155,31 @@ function saveShopState(state) {
     localStorage.setItem(SHOP_STATE_KEY, JSON.stringify(safe));
   } catch (e) {}
   return safe;
+}
+
+function getActiveBulletStyle() {
+  try {
+    const raw = String(localStorage.getItem(BULLET_STYLE_KEY) || "classic");
+    return BULLET_STYLES.some((s) => s.id === raw) ? raw : "classic";
+  } catch (e) {
+    return "classic";
+  }
+}
+
+function setActiveBulletStyle(styleId) {
+  const safe = BULLET_STYLES.some((s) => s.id === styleId) ? styleId : "classic";
+  try {
+    localStorage.setItem(BULLET_STYLE_KEY, safe);
+  } catch (e) {}
+  return safe;
+}
+
+function getBulletStyleMeta(styleId = getActiveBulletStyle()) {
+  return BULLET_STYLES.find((s) => s.id === styleId) || BULLET_STYLES[0];
+}
+
+function getBulletTextureKey(styleId = getActiveBulletStyle()) {
+  return getBulletStyleMeta(styleId).texture;
 }
 
 function buyShopItem(itemId) {
@@ -390,7 +425,6 @@ const LeaderboardService = {
     try {
       const snapshot = await db.collection(LEADERBOARD_COLLECTION)
         .orderBy("score", "desc")
-        .orderBy("createdAt", "asc")
         .limit(limitCount)
         .get();
 
@@ -426,7 +460,7 @@ const LeaderboardService = {
           name: cleanName,
           score: cleanScore,
           date: new Date().toISOString().slice(0, 10),
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          createdAt: Date.now()
         });
       }
       return await this.loadTop(10);
@@ -485,6 +519,13 @@ class BootScene extends Phaser.Scene {
     this.load.image("birdGold",  "assets/bird_gold.png");
     this.load.image("birdBlack", "assets/bird_black.png");
     this.load.image("bullet",    "assets/bullet.png");
+    this.load.image("bulletClassic", "assets/bullets/bullet_classic.png");
+    this.load.image("bulletLaser",   "assets/bullets/bullet_laser.png");
+    this.load.image("bulletIce",     "assets/bullets/bullet_ice.png");
+    this.load.image("bulletFlower",  "assets/bullets/bullet_flower.png");
+    this.load.image("bulletMinion",  "assets/bullets/bullet_minion.png");
+    this.load.image("bulletRainbow", "assets/bullets/bullet_rainbow.png");
+    this.load.image("bulletPlasma",  "assets/bullets/bullet_plasma.png");
     this.load.image("hit",       "assets/hit.png");
     this.load.image("feather",   "assets/feather.png");
   }
@@ -494,6 +535,7 @@ class BootScene extends Phaser.Scene {
     this.registry.set("playerName", getSavedPlayerName());
     this.registry.set("coins", getCoins());
     this.registry.set("shopState", loadShopState());
+    this.registry.set("activeBulletStyle", getActiveBulletStyle());
     this.registry.set("gameMode", getSavedGameMode());
     this.registry.set("missions", getMissionRows());
     this.scene.start("MenuScene");
@@ -687,6 +729,16 @@ class MenuScene extends Phaser.Scene {
     const buyCritBtn = document.getElementById("buy-crit-tech-btn");
     const openCaseBtn = document.getElementById("open-lucky-case-btn");
     const coinsLabel = document.getElementById("shop-coins-label");
+    const bulletCurrentLabel = document.getElementById("shop-bullet-current");
+    const bulletButtons = {
+      classic: document.getElementById("select-bullet-classic-btn"),
+      laser: document.getElementById("select-bullet-laser-btn"),
+      ice: document.getElementById("select-bullet-ice-btn"),
+      flower: document.getElementById("select-bullet-flower-btn"),
+      minion: document.getElementById("select-bullet-minion-btn"),
+      rainbow: document.getElementById("select-bullet-rainbow-btn"),
+      plasma: document.getElementById("select-bullet-plasma-btn")
+    };
     if (!modal || !closeBtn || !buyBlasterBtn || !buyBulletBtn || !buyRapidBtn || !buyBulletLabBtn || !buyCritBtn || !openCaseBtn || !coinsLabel) return;
 
     const render = () => {
@@ -728,6 +780,16 @@ class MenuScene extends Phaser.Scene {
       if (lvlBullet) lvlBullet.textContent = `Уровень: ${state.bulletLabLevel}/10`;
       if (lvlCrit) lvlCrit.textContent = `Уровень: ${state.critTechLevel}/5`;
       if (caseStat) caseStat.textContent = `Открыто кейсов: ${state.luckyCaseOpened || 0}`;
+
+      const activeStyle = getActiveBulletStyle();
+      const activeMeta = getBulletStyleMeta(activeStyle);
+      if (bulletCurrentLabel) bulletCurrentLabel.textContent = `Активная пуля: ${activeMeta.title}`;
+      Object.entries(bulletButtons).forEach(([styleId, btn]) => {
+        if (!btn) return;
+        const isActive = styleId === activeStyle;
+        btn.disabled = isActive;
+        btn.textContent = isActive ? 'Выбрано ✓' : 'Выбрать';
+      });
     };
 
     const closeModal = () => {
@@ -742,6 +804,7 @@ class MenuScene extends Phaser.Scene {
       buyBulletLabBtn.onclick = null;
       buyCritBtn.onclick = null;
       openCaseBtn.onclick = null;
+      Object.values(bulletButtons).forEach((btn) => { if (btn) btn.onclick = null; });
       document.onkeydown = null;
     };
 
@@ -762,6 +825,14 @@ class MenuScene extends Phaser.Scene {
       }
       render();
     };
+    Object.entries(bulletButtons).forEach(([styleId, btn]) => {
+      if (!btn) return;
+      btn.onclick = () => {
+        setActiveBulletStyle(styleId);
+        this.registry.set("activeBulletStyle", styleId);
+        render();
+      };
+    });
     closeBtn.onclick = closeModal;
     if (closeBtnTop) closeBtnTop.onclick = closeModal;
     modal.onclick = (event) => {
@@ -1469,7 +1540,7 @@ class GameScene extends Phaser.Scene {
       const spread    = [-0.18, 0, 0.18];
       spread.forEach((offset) => {
         const ang = baseAngle + offset;
-        const b = this.bullets.create(gx, gy, "bullet");
+        const b = this.bullets.create(gx, gy, getBulletTextureKey());
         b.prevX = gx;
         b.prevY = gy;
         b.setScale(0.16 * this.bulletScaleBonus).setTint(0xFFD700);
@@ -1498,7 +1569,7 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    const bullet = this.bullets.create(gx, gy, "bullet");
+    const bullet = this.bullets.create(gx, gy, getBulletTextureKey());
     bullet.prevX = gx;
     bullet.prevY = gy;
     bullet.setScale((0.06 + t * 0.06) * this.bulletScaleBonus);
@@ -1567,19 +1638,30 @@ class GameScene extends Phaser.Scene {
   }
 
   getBulletFxProfile(chargeT = 0, isSuper = false, isCrit = false) {
+    const styleId = getActiveBulletStyle();
+    const styleMap = {
+      classic: { trail: 0x00e5ff, secondary: 0x80deea, hitPalette: [0x00e5ff, 0x80deea, 0xb2ebf2] },
+      laser: { trail: 0x00f0ff, secondary: 0x7df9ff, hitPalette: [0x00f0ff, 0x7df9ff, 0xb2ffff] },
+      ice: { trail: 0xaeefff, secondary: 0xe1f5fe, hitPalette: [0xaeefff, 0xe1f5fe, 0x81d4fa] },
+      flower: { trail: 0xff7ab6, secondary: 0xffc1da, hitPalette: [0xff7ab6, 0xffc1da, 0xfff0f6] },
+      minion: { trail: 0xffd54f, secondary: 0xfff59d, hitPalette: [0xffd54f, 0xfff59d, 0xffb300] },
+      rainbow: { trail: 0xff4dd2, secondary: 0x7c4dff, hitPalette: [0xff4dd2, 0x7c4dff, 0x40c4ff] },
+      plasma: { trail: 0xff6d00, secondary: 0xff4081, hitPalette: [0xff6d00, 0xff4081, 0xffab40] }
+    };
+    const style = styleMap[styleId] || styleMap.classic;
     if (isSuper) {
       return { trail: 0xFFD700, secondary: 0xff7043, radius: 9, repeat: 8, alpha: 0.75, pulse: true, hitPalette: [0xFFD700, 0xff7043, 0xfff59d], shake: 0.01 };
     }
     if (isCrit) {
-      return { trail: 0xff8a65, secondary: 0xffcc80, radius: 7, repeat: 7, alpha: 0.72, pulse: true, hitPalette: [0xff8a65, 0xffcc80, 0xff7043], shake: 0.008 };
+      return { trail: style.trail, secondary: style.secondary, radius: 7, repeat: 7, alpha: 0.72, pulse: true, hitPalette: style.hitPalette, shake: 0.008 };
     }
     if (chargeT >= 0.8) {
-      return { trail: 0xff4400, secondary: 0xffcc80, radius: 7, repeat: 7, alpha: 0.7, pulse: true, hitPalette: [0xff4400, 0xffcc80, 0xff7043], shake: 0.0065 };
+      return { trail: style.trail, secondary: style.secondary, radius: 7, repeat: 7, alpha: 0.7, pulse: true, hitPalette: style.hitPalette, shake: 0.0065 };
     }
     if (chargeT >= 0.5) {
-      return { trail: 0xffcc00, secondary: 0xfff59d, radius: 6, repeat: 6, alpha: 0.62, pulse: false, hitPalette: [0xffcc00, 0xfff59d, 0xffe082], shake: 0.005 };
+      return { trail: style.trail, secondary: style.secondary, radius: 6, repeat: 6, alpha: 0.62, pulse: false, hitPalette: style.hitPalette, shake: 0.005 };
     }
-    return { trail: 0x00e5ff, secondary: 0x80deea, radius: 5, repeat: 5, alpha: 0.55, pulse: false, hitPalette: [0x00e5ff, 0x80deea, 0xb2ebf2], shake: 0.004 };
+    return { trail: style.trail, secondary: style.secondary, radius: 5, repeat: 5, alpha: 0.55, pulse: false, hitPalette: style.hitPalette, shake: 0.004 };
   }
 
   updateBoosterButtons() {

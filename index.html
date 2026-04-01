@@ -176,6 +176,19 @@
       padding-top: 6px;
       margin: 0 -4px -2px;
     }
+
+    .shop-bullet-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .shop-mini-note {
+      font-size: 15px;
+      opacity: 0.9;
+      line-height: 1.3;
+      margin-top: 6px;
+    }
     #start-game-btn {
       background: #ff6f00;
       color: white;
@@ -242,6 +255,20 @@
           <div class="shop-desc">Случайная награда: монеты или бесплатный апгрейд.</div>
           <div class="shop-desc" id="shop-case-opened">Открыто кейсов: 0</div>
           <button id="open-lucky-case-btn" type="button">Открыть — 350</button>
+        </div>
+        <div class="shop-item">
+          <div class="shop-title">🎨 Скины пуль</div>
+          <div class="shop-desc" id="shop-bullet-current">Активная пуля: Classic</div>
+          <div class="shop-mini-note">Скины уже доступны. Здесь можно выбрать внешний вид пули.</div>
+          <div class="shop-bullet-grid">
+            <button id="select-bullet-classic-btn" type="button">Classic</button>
+            <button id="select-bullet-laser-btn" type="button">Laser</button>
+            <button id="select-bullet-ice-btn" type="button">Ice</button>
+            <button id="select-bullet-flower-btn" type="button">Flower</button>
+            <button id="select-bullet-minion-btn" type="button">Minion</button>
+            <button id="select-bullet-rainbow-btn" type="button">Rainbow</button>
+            <button id="select-bullet-plasma-btn" type="button">Plasma</button>
+          </div>
         </div>
       </div>
       <div class="shop-footer">
