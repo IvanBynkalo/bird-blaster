@@ -769,26 +769,28 @@ class GameScene extends Phaser.Scene {
       this.missIcons.push(ic);
     }
 
-    this.topBar = this.add.rectangle(W/2, 60, W, 120, 0x5d4037, 0.88);
-    this.topBarInner = this.add.rectangle(W/2, 60, W-4, 116, 0x6d4c41, 0.5);
-    this.timeText  = this.add.text(24, 20, this.modeId === "classic" ? `⏱ ∞` : `⏱ ${this.timeLeft}`, { fontSize:"44px", color:"#FFD700", stroke:"#000", strokeThickness:6 });
-    this.scoreText = this.add.text(W/2, 20, "SCORE: 0", { fontSize:"44px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5, 0);
-    this.modeHudText = this.add.text(W/2, 112, this.mode.title, { fontSize:"22px", color:"#00e5ff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5,0);
-    this.comboText = this.add.text(W/2, 72, "", { fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0);
-    this.waveText = this.add.text(W/2, 144, "", { fontSize:"26px", color:"#7CFF00", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0);
-    this.waveSubText = this.add.text(W/2, 174, "", { fontSize:"18px", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5, 0);
-    this.bossHpText = this.add.text(W/2, 202, "", { fontSize:"28px", color:"#ff8a65", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0).setVisible(false);
-    this.themeNameText = this.add.text(W/2, 228, "", { fontSize:"18px", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5, 0);
-    this.waveBonusBg = this.add.rectangle(W/2, 274, 520, 72, 0x000000, 0.52).setStrokeStyle(3, 0xFFD700, 0.9).setDepth(5);
-    this.waveBonusText = this.add.text(W/2, 244, "", { fontSize:"22px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5, 0).setDepth(6);
-    this.survivalBonusText = this.add.text(W/2, 272, "", { fontSize:"18px", color:"#ffffff", stroke:"#000", strokeThickness:4, fontStyle:"bold", align:"center" }).setOrigin(0.5, 0).setDepth(6);
-    this.waveProgressText = this.add.text(W/2, 298, "", { fontSize:"18px", color:"#ffffff", stroke:"#000", strokeThickness:4, fontStyle:"bold", align:"center" }).setOrigin(0.5, 0).setDepth(6);
-    this.livesText = this.add.text(W-20, 20, "❤❤❤", { fontSize:"38px", color:"#ff4d4d", stroke:"#000", strokeThickness:5 }).setOrigin(1, 0);
-    this.playerText = this.add.text(24, 132, `Игрок: ${this.playerName}`, {
-      fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:4
+    this.topBar = this.add.rectangle(W/2, 52, W, 104, 0x5d4037, 0.88);
+    this.topBarInner = this.add.rectangle(W/2, 52, W-4, 100, 0x6d4c41, 0.5);
+    this.timeText  = this.add.text(24, 16, this.modeId === "classic" ? `⏱ ∞` : `⏱ ${this.timeLeft}`, { fontSize:"40px", color:"#FFD700", stroke:"#000", strokeThickness:6 });
+    this.scoreText = this.add.text(W/2, 16, "SCORE: 0", { fontSize:"42px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5, 0);
+    this.comboText = this.add.text(W/2, 62, "", { fontSize:"26px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0);
+    this.modeHudText = this.add.text(W/2, 96, this.mode.title, { fontSize:"20px", color:"#00e5ff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5,0);
+    this.waveText = this.add.text(W/2, 128, "", { fontSize:"30px", color:"#7CFF00", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0);
+    this.waveSubText = this.add.text(W/2, 164, "", { fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5, 0);
+    this.bossHpText = this.add.text(W/2, 196, "", { fontSize:"26px", color:"#ff8a65", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0).setVisible(false);
+    this.themeNameText = this.add.text(W/2, 0, "", { fontSize:"1px", color:"#fff" }).setOrigin(0.5, 0).setVisible(false);
+    this.waveBonusBg = this.add.rectangle(W/2, 222, 360, 50, 0x000000, 0.52).setStrokeStyle(3, 0xFFD700, 0.9).setDepth(5);
+    this.waveBonusText = this.add.text(W/2, 199, "", { fontSize:"24px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5, 0).setDepth(6);
+    this.survivalBonusText = this.add.text(W/2, 0, "", { fontSize:"1px", color:"#ffffff" }).setOrigin(0.5, 0).setDepth(6).setVisible(false);
+    this.waveProgressBg = this.add.rectangle(W/2, 255, 280, 14, 0x000000, 0.55).setStrokeStyle(2, 0xffffff, 0.5).setDepth(5);
+    this.waveProgressFill = this.add.rectangle(W/2 - 140, 255, 0, 10, 0x7CFF00, 0.95).setOrigin(0, 0.5).setDepth(6);
+    this.waveProgressText = this.add.text(W/2, 268, "", { fontSize:"16px", color:"#ffffff", stroke:"#000", strokeThickness:4, fontStyle:"bold", align:"center" }).setOrigin(0.5, 0).setDepth(6);
+    this.livesText = this.add.text(W-20, 16, "❤❤❤", { fontSize:"38px", color:"#ff4d4d", stroke:"#000", strokeThickness:5 }).setOrigin(1, 0);
+    this.playerText = this.add.text(24, 128, `Игрок: ${this.playerName}`, {
+      fontSize:"22px", color:"#fff", stroke:"#000", strokeThickness:4
     });
-    this.coinsHudText = this.add.text(W-20, 132, `🪙 ${getCoins()}`, {
-      fontSize:"24px", color:"#FFD700", stroke:"#000", strokeThickness:4
+    this.coinsHudText = this.add.text(W-20, 128, `🪙 ${getCoins()}`, {
+      fontSize:"22px", color:"#FFD700", stroke:"#000", strokeThickness:4
     }).setOrigin(1, 0);
 
     this.hitIcons = [];
@@ -1041,29 +1043,38 @@ class GameScene extends Phaser.Scene {
     return null;
   }
 
+  getShortWaveBonus(profile = this.waveProfile) {
+    if (!profile) return "";
+    if (profile.id === "speed") return "+20% SCORE";
+    if (profile.id === "gold") return "GOLD BIRDS ↑";
+    if (profile.id === "shadow") return "+35% SCORE";
+    if (profile.id === "boss") return "BOSS BONUS";
+    return "START";
+  }
+
   updateWaveHud() {
     if (!this.waveProfile) return;
-    const currentMult = this.getSurvivalBonusMultiplier(this.waveIndex);
-    const nextTarget = this.getNextSurvivalBonusTarget(this.waveIndex);
     const cleared = Math.max(0, this.waveBirdSpawned - this.getAliveBirdCount(false));
     const total = Math.max(1, this.waveBirdTarget || 1);
-    const remaining = Math.max(0, total - cleared);
-    this.waveText.setText(`🌊 WAVE ${this.waveIndex}`);
-    this.waveSubText.setText(`${this.waveProfile.label} • ${this.waveProfile.bonus || this.currentTheme?.name || ""}`);
-    if (this.waveBonusText) this.waveBonusText.setText(`БОНУС СЕЙЧАС: ${this.waveProfile.bonus || 'без бонуса'}`);
-    if (this.survivalBonusText) {
-      const nextText = nextTarget
-        ? `ФИНАЛЬНЫЙ БОНУС: x${currentMult} • на WAVE ${nextTarget.wave} будет x${nextTarget.mult}`
-        : `ФИНАЛЬНЫЙ БОНУС: x${currentMult} • максимум достигнут`;
-      this.survivalBonusText.setText(nextText);
-    }
+    const progress = Phaser.Math.Clamp(cleared / total, 0, 1);
+    const accentHex = Phaser.Display.Color.HexStringToColor((this.currentTheme?.accent || '#FFD700')).color;
+    this.waveText.setText(`WAVE ${this.waveIndex} — ${this.waveProfile.label.toUpperCase()}`);
+    this.waveSubText.setText(this.getShortWaveBonus(this.waveProfile));
+    if (this.waveBonusText) this.waveBonusText.setText(this.getShortWaveBonus(this.waveProfile));
     if (this.waveProgressText) {
-      this.waveProgressText.setText(`ПРОГРЕСС ВОЛНЫ: ${cleared}/${total} • осталось ${remaining}`);
+      this.waveProgressText.setText(`${cleared}/${total}`);
     }
     if (this.waveBonusBg) {
       const baseColor = this.currentTheme?.panel || 0x6d4c41;
-      this.waveBonusBg.setFillStyle(baseColor, 0.62);
-      this.waveBonusBg.setStrokeStyle(3, Phaser.Display.Color.HexStringToColor((this.currentTheme?.accent || '#FFD700')).color, 0.95);
+      this.waveBonusBg.setFillStyle(baseColor, 0.64);
+      this.waveBonusBg.setStrokeStyle(3, accentHex, 0.95);
+    }
+    if (this.waveProgressBg) {
+      this.waveProgressBg.setStrokeStyle(2, accentHex, 0.75);
+    }
+    if (this.waveProgressFill) {
+      this.waveProgressFill.setFillStyle(accentHex, 0.95);
+      this.waveProgressFill.width = 280 * progress;
     }
   }
 
@@ -1084,7 +1095,7 @@ class GameScene extends Phaser.Scene {
     this.speedWaveMultiplier = (this.waveProfile?.speedMult || 1) + (index - 1) * 0.045 + (this.modeId === "timeAttack" ? 0.08 : 0) + this.timePressureLevel * 0.04;
     this.bossHpText.setVisible(false).setText("");
     this.updateWaveHud();
-    this.showWaveBanner(`WAVE ${index}`, `${this.waveProfile.label} · ${this.waveProfile.bonus || ""}`);
+    this.showWaveBanner(`WAVE ${index}`, this.getShortWaveBonus(this.waveProfile));
     this.setSpawnDelay(this.spawnDelayCurrent);
   }
 
@@ -1382,7 +1393,7 @@ class GameScene extends Phaser.Scene {
       scale = 0.14;
     }
 
-    const spawnY  = Phaser.Math.Between(180, Math.floor(H*0.60));
+    const spawnY  = Phaser.Math.Between(270, Math.floor(H*0.62));
     const startX  = side===0 ? -160 : W+160;
     const targetX = side===0 ? W+200 : -200;
     const targetY = spawnY + Phaser.Math.Between(-90,90);
