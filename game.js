@@ -13,6 +13,8 @@ const SHOP_ITEMS = {
   luckyCase: { id: "luckyCase", title: "Lucky Case", price: 350 }
 };
 const BULLET_STYLE_KEY = "bird_blaster_bullet_style_v1";
+const BULLET_OWNED_KEY = "bird_blaster_bullet_owned_v1";
+const BULLET_SKIN_PRICE = 2000;
 const BULLET_STYLES = [
   { id: "classic", title: "Classic", texture: "bulletClassic" },
   { id: "laser", title: "Laser", texture: "bulletLaser" },
@@ -160,7 +162,8 @@ function saveShopState(state) {
 function getActiveBulletStyle() {
   try {
     const raw = String(localStorage.getItem(BULLET_STYLE_KEY) || "classic");
-    return BULLET_STYLES.some((s) => s.id === raw) ? raw : "classic";
+    const safe = BULLET_STYLES.some((s) => s.id === raw) ? raw : "classic";
+    return isBulletStyleOwned(safe) ? safe : "classic";
   } catch (e) {
     return "classic";
   }
@@ -168,10 +171,11 @@ function getActiveBulletStyle() {
 
 function setActiveBulletStyle(styleId) {
   const safe = BULLET_STYLES.some((s) => s.id === styleId) ? styleId : "classic";
+  const finalStyle = isBulletStyleOwned(safe) ? safe : "classic";
   try {
-    localStorage.setItem(BULLET_STYLE_KEY, safe);
+    localStorage.setItem(BULLET_STYLE_KEY, finalStyle);
   } catch (e) {}
-  return safe;
+  return finalStyle;
 }
 
 function getBulletStyleMeta(styleId = getActiveBulletStyle()) {
@@ -180,6 +184,61 @@ function getBulletStyleMeta(styleId = getActiveBulletStyle()) {
 
 function getBulletTextureKey(styleId = getActiveBulletStyle()) {
   return getBulletStyleMeta(styleId).texture;
+}
+
+
+function loadOwnedBulletStyles() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(BULLET_OWNED_KEY) || '{}');
+    const safe = { classic: true };
+    BULLET_STYLES.forEach((style) => {
+      if (style.id === 'classic') {
+        safe.classic = true;
+      } else {
+        safe[style.id] = !!raw[style.id];
+      }
+    });
+    return safe;
+  } catch (e) {
+    const safe = { classic: true };
+    BULLET_STYLES.forEach((style) => {
+      if (style.id !== 'classic') safe[style.id] = false;
+    });
+    return safe;
+  }
+}
+
+function saveOwnedBulletStyles(state) {
+  const safe = { classic: true };
+  BULLET_STYLES.forEach((style) => {
+    if (style.id === 'classic') {
+      safe.classic = true;
+    } else {
+      safe[style.id] = !!state?.[style.id];
+    }
+  });
+  try {
+    localStorage.setItem(BULLET_OWNED_KEY, JSON.stringify(safe));
+  } catch (e) {}
+  return safe;
+}
+
+function isBulletStyleOwned(styleId) {
+  const owned = loadOwnedBulletStyles();
+  return !!owned[styleId];
+}
+
+function buyBulletStyle(styleId) {
+  if (!BULLET_STYLES.some((s) => s.id === styleId)) return { ok: false, reason: 'missing' };
+  if (styleId === 'classic') return { ok: false, reason: 'free' };
+  const owned = loadOwnedBulletStyles();
+  if (owned[styleId]) return { ok: false, reason: 'owned', owned, coins: getCoins() };
+  const coins = getCoins();
+  if (coins < BULLET_SKIN_PRICE) return { ok: false, reason: 'coins', owned, coins };
+  setCoins(coins - BULLET_SKIN_PRICE);
+  owned[styleId] = true;
+  saveOwnedBulletStyles(owned);
+  return { ok: true, owned, coins: getCoins() };
 }
 
 function buyShopItem(itemId) {
@@ -536,6 +595,7 @@ class BootScene extends Phaser.Scene {
     this.registry.set("coins", getCoins());
     this.registry.set("shopState", loadShopState());
     this.registry.set("activeBulletStyle", getActiveBulletStyle());
+    this.registry.set("ownedBulletStyles", loadOwnedBulletStyles());
     this.registry.set("gameMode", getSavedGameMode());
     this.registry.set("missions", getMissionRows());
     this.scene.start("MenuScene");
@@ -783,12 +843,22 @@ class MenuScene extends Phaser.Scene {
 
       const activeStyle = getActiveBulletStyle();
       const activeMeta = getBulletStyleMeta(activeStyle);
+      const ownedStyles = loadOwnedBulletStyles();
+      this.registry.set("ownedBulletStyles", ownedStyles);
       if (bulletCurrentLabel) bulletCurrentLabel.textContent = `Активная пуля: ${activeMeta.title}`;
+
       Object.entries(bulletButtons).forEach(([styleId, btn]) => {
         if (!btn) return;
+        const meta = getBulletStyleMeta(styleId);
+        const owned = !!ownedStyles[styleId];
         const isActive = styleId === activeStyle;
+        btn.className = 'bullet-skin-btn';
+        btn.dataset.styleId = styleId;
+        btn.innerHTML = `<img src="assets/bullets/bullet_${styleId}.png" alt="${meta.title}"><span class="bullet-skin-name">${meta.title}</span><span class="bullet-skin-action">${!owned ? `Купить — ${BULLET_SKIN_PRICE}` : (isActive ? 'Выбрано ✓' : 'Использовать')}</span>`;
         btn.disabled = isActive;
-        btn.textContent = isActive ? 'Выбрано ✓' : 'Выбрать';
+        btn.classList.toggle('owned', owned);
+        btn.classList.toggle('selected', isActive);
+        btn.classList.toggle('locked', !owned);
       });
     };
 
@@ -828,8 +898,16 @@ class MenuScene extends Phaser.Scene {
     Object.entries(bulletButtons).forEach(([styleId, btn]) => {
       if (!btn) return;
       btn.onclick = () => {
-        setActiveBulletStyle(styleId);
-        this.registry.set("activeBulletStyle", styleId);
+        if (!isBulletStyleOwned(styleId)) {
+          const res = buyBulletStyle(styleId);
+          if (!res.ok && res.reason === 'coins') {
+            alert(`Недостаточно монет. Нужно ${BULLET_SKIN_PRICE}`);
+            return;
+          }
+        }
+        const active = setActiveBulletStyle(styleId);
+        this.registry.set("activeBulletStyle", active);
+        this.registry.set("ownedBulletStyles", loadOwnedBulletStyles());
         render();
       };
     });
