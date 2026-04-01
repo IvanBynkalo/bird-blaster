@@ -748,6 +748,7 @@ class GameScene extends Phaser.Scene {
     const { width: W, height: H } = this.scale;
     this.skyBackdrop = this.add.rectangle(W/2, H/2, W, H, 0x8fd3ff, 1);
     this.bg = this.add.image(W/2, H/2, "bgDay").setDisplaySize(W, H);
+    this.bgCrossfade = this.add.image(W/2, H/2, "bgDay").setDisplaySize(W, H).setAlpha(0).setDepth(0.5).setVisible(false);
     this.themeOverlay = this.add.rectangle(W/2, H/2, W, H, 0x8be9ff, 0.08).setDepth(1);
 
     this.birds   = this.physics.add.group();
@@ -975,10 +976,9 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  applyWaveTheme(theme, options = {}) {
-    if (!theme || !this.bg) return;
+  applyThemeNow(theme, options = {}) {
     this.currentTheme = theme;
-    if (theme.bgKey && this.bg.texture?.key !== theme.bgKey) {
+    if (!options.skipBackground && theme.bgKey && this.bg.texture?.key !== theme.bgKey) {
       this.bg.setTexture(theme.bgKey).setDisplaySize(this.scale.width, this.scale.height);
     }
     this.bg.clearTint();
@@ -994,12 +994,87 @@ class GameScene extends Phaser.Scene {
     if (this.survivalBonusText) this.survivalBonusText.setColor(theme.subAccent);
     this.buildWeatherLayer(theme);
     this.updateWaveHud();
-    if (!options.silent) {
+  }
+
+  applyWaveTheme(theme, options = {}) {
+    if (!theme || !this.bg) return;
+
+    const showLabel = () => {
+      if (options.silent) return;
       const label = this.add.text(this.scale.width / 2, 246, `${theme.name}`, {
         fontSize:"24px", color:theme.subAccent, stroke:"#000", strokeThickness:5, fontStyle:"bold"
       }).setOrigin(0.5).setDepth(27);
       this.tweens.add({ targets:label, alpha:0, y:210, duration:1200, onComplete:() => label.destroy() });
+    };
+
+    if (options.silent || !this.currentTheme) {
+      this.applyThemeNow(theme, options);
+      showLabel();
+      return;
     }
+
+    if (this.themeTransitionTween) {
+      this.themeTransitionTween.stop();
+      this.themeTransitionTween = null;
+    }
+
+    if (!this.themeTransitionRect) {
+      this.themeTransitionRect = this.add.rectangle(
+        this.scale.width / 2,
+        this.scale.height / 2,
+        this.scale.width,
+        this.scale.height,
+        0x000000,
+        0
+      ).setDepth(26).setScrollFactor(0);
+    }
+
+    if (this.bgCrossfade) {
+      this.bgCrossfade
+        .setTexture(theme.bgKey || this.bg.texture.key)
+        .setDisplaySize(this.scale.width, this.scale.height)
+        .setPosition(this.scale.width / 2, this.scale.height / 2)
+        .setAlpha(0)
+        .setVisible(true);
+    }
+
+    this.themeTransitionRect
+      .setSize(this.scale.width, this.scale.height)
+      .setPosition(this.scale.width / 2, this.scale.height / 2)
+      .setFillStyle(theme.overlay || theme.topBar || 0x000000, 0)
+      .setAlpha(0);
+
+    this.themeTransitionTween = this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 1050,
+      ease: 'Sine.easeInOut',
+      onStart: () => {
+        this._themeSwappedAtMid = false;
+      },
+      onUpdate: (tw) => {
+        const t = tw.getValue();
+        const cross = Phaser.Math.Clamp((t - 0.12) / 0.76, 0, 1);
+        if (this.bgCrossfade) this.bgCrossfade.alpha = cross;
+        this.themeTransitionRect.alpha = Math.sin(Math.PI * t) * 0.20;
+
+        if (t >= 0.58 && !this._themeSwappedAtMid) {
+          this._themeSwappedAtMid = true;
+          this.applyThemeNow(theme, { ...options, skipBackground: true });
+        }
+      },
+      onComplete: () => {
+        this.applyThemeNow(theme, options);
+        if (this.bgCrossfade) {
+          this.bgCrossfade.alpha = 0;
+          this.bgCrossfade.setVisible(false);
+        }
+        this.themeTransitionRect.alpha = 0;
+        this._themeSwappedAtMid = false;
+        this.themeTransitionTween = null;
+        showLabel();
+      }
+    });
   }
 
   updateWeatherLayer(delta) {
