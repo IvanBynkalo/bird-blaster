@@ -34,8 +34,10 @@
       justify-content: center;
       background: rgba(0,0,0,0.72);
       z-index: 50;
-      padding: 24px;
+      padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)) 16px;
       box-sizing: border-box;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
     #name-modal.show, #shop-modal.show {
       display: flex;
@@ -49,6 +51,11 @@
       padding: 22px 20px 18px;
       color: white;
       text-align: center;
+      max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
     }
     .modal-card h2 {
       margin: 0 0 8px;
@@ -154,8 +161,11 @@
 
   <div id="shop-modal" aria-hidden="true">
     <div class="modal-card">
-      <h2>Магазин</h2>
-      <p id="shop-coins-label">Монеты: 0</p>
+      <div class="shop-modal-header">
+        <button id="close-shop-x" class="shop-close-x" type="button" aria-label="Закрыть">×</button>
+        <h2>Магазин</h2>
+        <p id="shop-coins-label">Монеты: 0</p>
+      </div>
       <div class="shop-items">
         <div class="shop-item">
           <div class="shop-title">🔫 Blaster PRO</div>
@@ -192,8 +202,10 @@
           <button id="open-lucky-case-btn" type="button">Открыть — 350</button>
         </div>
       </div>
-      <div class="modal-actions single-row">
-        <button id="close-shop-btn" type="button">Закрыть</button>
+      <div class="shop-footer">
+        <div class="modal-actions single-row">
+          <button id="close-shop-btn" type="button">Назад</button>
+        </div>
       </div>
     </div>
   </div>

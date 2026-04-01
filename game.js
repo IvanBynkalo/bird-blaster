@@ -553,7 +553,7 @@ class MenuScene extends Phaser.Scene {
     this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.86, H*0.702, "v15", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v15.3", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
@@ -679,6 +679,7 @@ class MenuScene extends Phaser.Scene {
   openShopModal() {
     const modal = document.getElementById("shop-modal");
     const closeBtn = document.getElementById("close-shop-btn");
+    const closeBtnTop = document.getElementById("close-shop-x");
     const buyBlasterBtn = document.getElementById("buy-blaster-pro-btn");
     const buyBulletBtn = document.getElementById("buy-big-bullet-btn");
     const buyRapidBtn = document.getElementById("buy-rapid-fire-btn");
@@ -1771,6 +1772,11 @@ class GameScene extends Phaser.Scene {
       for(let i=0;i<3;i++) { this.hitIcons[i].setColor("#00e5ff"); this.hitIcons[i].setText("★"); }
     }
 
+    const runMult = this.doubleScoreActive ? 2 : 1;
+    const waveMult = this.waveProfile?.scoreMult || 1;
+    const isCrit = Math.random() < this.critChance;
+    const critMult = isCrit ? 2 : 1;
+
     const shotFx = bullet.fxProfile || this.getBulletFxProfile(0.3, false, false);
     if (isCrit) shotFx.hitPalette = [0xff8a65, 0xffcc80, 0xff7043];
     this.spawnImpactBurst(bx, by, shotFx.hitPalette || [0xffffff], isCrit ? 12 : 8, isCrit ? 78 : 56, isCrit ? 6 : 5);
@@ -1784,11 +1790,6 @@ class GameScene extends Phaser.Scene {
       this.tweens.add({ targets:f, x:bx+Phaser.Math.Between(-80,80), y:by+Phaser.Math.Between(-60,80),
         angle:Phaser.Math.Between(-180,180), alpha:0, duration:700+Math.random()*300, ease:"Quad.easeOut", onComplete:()=>f.destroy() });
     }
-
-    const runMult = this.doubleScoreActive ? 2 : 1;
-    const waveMult = this.waveProfile?.scoreMult || 1;
-    const isCrit = Math.random() < this.critChance;
-    const critMult = isCrit ? 2 : 1;
     const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult);
     const color = isCrit ? "#ff8a65" : (this.comboMult >= 3 ? "#00e5ff" : (pts>=300?"#FFD700":"#7CFF00"));
     const popupParts = [`+${gained}`];
