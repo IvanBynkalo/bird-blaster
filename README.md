@@ -51,3 +51,9 @@ npx serve .
 4. В Firestore создай базу и правила чтения/записи для коллекции `leaderboard`
 
 Пока Firebase не настроен, игра автоматически использует локальный рейтинг.
+
+
+## v10 update
+- Dynamic wave themes: clear sky, storm, golden hour, night hunt
+- Weather layers per wave: clouds, rain, sparkles, stars, embers
+- Boss waves switch the arena theme automatically

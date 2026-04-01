@@ -19,6 +19,74 @@ const MISSIONS = [
   { id: "score3000", title: "Набери 3000 очков суммарно", goal: 3000, reward: 150, stat: "totalScore" },
   { id: "games5", title: "Сыграй 5 раундов", goal: 5, reward: 80, stat: "gamesPlayed" }
 ];
+
+const WAVE_THEMES = {
+  balanced: {
+    name: "Ясное небо",
+    tint: 0xffffff,
+    sky: 0x8fd3ff,
+    overlay: 0x8be9ff,
+    overlayAlpha: 0.08,
+    topBar: 0x5d4037,
+    panel: 0x6d4c41,
+    accent: "#7CFF00",
+    subAccent: "#ffffff",
+    weather: "clouds",
+    bgKey: "bgDay"
+  },
+  speed: {
+    name: "Шторм",
+    tint: 0xcfe8ff,
+    sky: 0x4d78c9,
+    overlay: 0x1c3d7a,
+    overlayAlpha: 0.28,
+    topBar: 0x1d3557,
+    panel: 0x274c77,
+    accent: "#00e5ff",
+    subAccent: "#d6efff",
+    weather: "rain",
+    bgKey: "bgStorm"
+  },
+  gold: {
+    name: "Золотой час",
+    tint: 0xffe3a1,
+    sky: 0xffb347,
+    overlay: 0xff9800,
+    overlayAlpha: 0.18,
+    topBar: 0x7b4f00,
+    panel: 0x9c6644,
+    accent: "#FFD700",
+    subAccent: "#fff0bd",
+    weather: "sparkles",
+    bgKey: "bgSunset"
+  },
+  shadow: {
+    name: "Ночная охота",
+    tint: 0xb9b6ff,
+    sky: 0x101d42,
+    overlay: 0x05081a,
+    overlayAlpha: 0.42,
+    topBar: 0x1b1034,
+    panel: 0x261447,
+    accent: "#d2b3ff",
+    subAccent: "#f1e7ff",
+    weather: "stars",
+    bgKey: "bgNight"
+  },
+  boss: {
+    name: "Арена босса",
+    tint: 0xffb3b3,
+    sky: 0x3a0d0d,
+    overlay: 0x8b0000,
+    overlayAlpha: 0.36,
+    topBar: 0x5a0f0f,
+    panel: 0x7a1f1f,
+    accent: "#ff8a65",
+    subAccent: "#ffd7d7",
+    weather: "embers",
+    bgKey: "bgBoss"
+  }
+};
 const ENABLE_GLOBAL_LEADERBOARD = !!window.BIRD_BLASTER_ENABLE_GLOBAL_LEADERBOARD;
 const FIREBASE_CONFIG = window.BIRD_BLASTER_FIREBASE_CONFIG || null;
 const LEADERBOARD_COLLECTION = window.BIRD_BLASTER_LEADERBOARD_COLLECTION || "leaderboard";
@@ -336,6 +404,11 @@ class BootScene extends Phaser.Scene {
     this.load.on("progress", (v) => { fill.width = 400 * v; });
 
     this.load.image("bg",        "assets/bg.png");
+    this.load.image("bgDay",     "assets/bg_day.png");
+    this.load.image("bgStorm",   "assets/bg_storm.png");
+    this.load.image("bgSunset",  "assets/bg_sunset.png");
+    this.load.image("bgNight",   "assets/bg_night.png");
+    this.load.image("bgBoss",    "assets/bg_boss.png");
     this.load.image("gun",       "assets/gun.png");
     this.load.image("birdBlue",  "assets/bird_blue.png");
     this.load.image("birdRed",   "assets/bird_red.png");
@@ -365,54 +438,65 @@ class MenuScene extends Phaser.Scene {
 
   create() {
     const { width: W, height: H } = this.scale;
-    this.add.image(W/2, H/2, "bg").setDisplaySize(W, H);
+    this.skyBackdrop = this.add.rectangle(W/2, H/2, W, H, 0x8fd3ff, 1);
+    this.bg = this.add.image(W/2, H/2, "bgDay").setDisplaySize(W, H);
+    this.themeOverlay = this.add.rectangle(W/2, H/2, W, H, 0x8be9ff, 0.05).setDepth(1);
 
-    this.add.rectangle(W/2, H*0.16, 590, 132, 0x5d4037).setStrokeStyle(7, 0x3e2723);
-    this.add.rectangle(W/2, H*0.16, 582, 124, 0x6d4c41);
-    this.add.text(W/2, H*0.115, "BIRD", { fontSize:"102px", color:"#FFD700", stroke:"#7f4000", strokeThickness:14, fontStyle:"bold" }).setOrigin(0.5);
-    this.add.text(W/2, H*0.195, "BLASTER", { fontSize:"74px", color:"#00e5ff", stroke:"#003366", strokeThickness:10, fontStyle:"bold" }).setOrigin(0.5);
+    this.add.rectangle(W/2, H*0.102, 520, 116, 0x5d4037, 0.92).setStrokeStyle(7, 0x3e2723).setDepth(3);
+    this.add.rectangle(W/2, H*0.102, 508, 102, 0x6d4c41, 0.96).setDepth(3);
+    this.add.text(W/2, H*0.072, "BIRD", { fontSize:"84px", color:"#FFD700", stroke:"#7f4000", strokeThickness:12, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.add.text(W/2, H*0.128, "BLASTER", { fontSize:"56px", color:"#00e5ff", stroke:"#003366", strokeThickness:9, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+
+    this.topCoinsCard = this.add.rectangle(W*0.18, H*0.205, 180, 60, 0x000000, 0.45).setStrokeStyle(4, 0xFFD700);
+    this.coinsText = this.add.text(W*0.18, H*0.205, "", {
+      fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    }).setOrigin(0.5).setDepth(4);
+
+    this.shopBtn = this.add.rectangle(W*0.82, H*0.205, 180, 60, 0x6a1b9a, 0.95).setStrokeStyle(5, 0xFFD700).setInteractive({ useHandCursor: true }).setDepth(3);
+    this.shopBtnLabel = this.add.text(W*0.82, H*0.205, "🛒 SHOP", { fontSize:"28px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.shopBtn.on("pointerdown", () => this.openShopModal());
 
     const birds = [
-      { key:"birdBlue",  pts:"100", x:W*0.18, label:"Обычная" },
+      { key:"birdBlue",  pts:"100", x:W*0.19, label:"Обычная" },
       { key:"birdRed",   pts:"150", x:W*0.50, label:"Быстрая" },
-      { key:"birdGold",  pts:"300", x:W*0.82, label:"Бонусная" },
+      { key:"birdGold",  pts:"300", x:W*0.81, label:"Бонусная" },
     ];
     birds.forEach(({ key, pts, x, label }) => {
-      const img = this.add.image(x, H*0.39, key).setScale(0.14);
-      this.tweens.add({ targets:img, y:H*0.39-14, duration:900+Math.random()*400, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
-      this.add.text(x, H*0.48, `+${pts}`, { fontSize:"38px", color:"#FFD700", stroke:"#000", strokeThickness:5 }).setOrigin(0.5);
-      this.add.text(x, H*0.53, label,    { fontSize:"26px", color:"#fff",    stroke:"#000", strokeThickness:4 }).setOrigin(0.5);
+      const img = this.add.image(x, H*0.315, key).setScale(0.12).setDepth(4);
+      this.tweens.add({ targets:img, y:H*0.315-12, duration:900+Math.random()*400, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
+      this.add.text(x, H*0.378, `+${pts}`, { fontSize:"34px", color:"#FFD700", stroke:"#000", strokeThickness:5 }).setOrigin(0.5).setDepth(4);
+      this.add.text(x, H*0.417, label, { fontSize:"22px", color:"#fff", stroke:"#000", strokeThickness:4 }).setOrigin(0.5).setDepth(4);
     });
 
-    const gun = this.add.image(W/2, H*0.71, "gun").setScale(0.275);
-    this.tweens.add({ targets:gun, y:H*0.71-8, duration:1200, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
-    this.add.text(W/2, H*0.645, "ЗАЖМИ И ОТПУСТИ = ВЫСТРЕЛ", { fontSize:"30px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5);
+    this.add.rectangle(W/2, H*0.505, 420, 62, 0x000000, 0.40).setStrokeStyle(3, 0xffffff, 0.35).setDepth(3);
+    this.add.text(W/2, H*0.505, "ЗАЖМИ И ОТПУСТИ = ВЫСТРЕЛ", { fontSize:"26px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
-    this.nameText = this.add.text(W/2, H*0.745, "", {
-      fontSize:"28px", color:"#fff", stroke:"#000", strokeThickness:5
-    }).setOrigin(0.5);
-    this.coinsText = this.add.text(W/2, H*0.775, "", {
-      fontSize:"26px", color:"#FFD700", stroke:"#000", strokeThickness:5
-    }).setOrigin(0.5);
-    this.refreshPlayerNameText();
-    this.refreshCoinsText();
+    const gun = this.add.image(W/2, H*0.59, "gun").setScale(0.235).setDepth(4);
+    this.tweens.add({ targets:gun, y:H*0.59-8, duration:1200, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
 
-    this.modeBtn = this.add.rectangle(W*0.18, H*0.93, 220, 76, 0x1565c0).setStrokeStyle(5, 0xFFD700).setInteractive({ useHandCursor: true });
-    this.modeText = this.add.text(W*0.18, H*0.93, "", { fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5);
+    this.nameCard = this.add.rectangle(W/2, H*0.665, 420, 54, 0x000000, 0.42).setStrokeStyle(3, 0x00e5ff, 0.8).setDepth(3);
+    this.nameText = this.add.text(W/2, H*0.665, "", {
+      fontSize:"26px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    }).setOrigin(0.5).setDepth(4);
+
+    this.modeBtn = this.add.rectangle(W*0.26, H*0.742, 240, 68, 0x1565c0).setStrokeStyle(5, 0xFFD700).setInteractive({ useHandCursor: true }).setDepth(3);
+    this.modeText = this.add.text(W*0.26, H*0.742, "", { fontSize:"23px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
-    this.refreshModeText();
 
-    this.shopBtn = this.add.rectangle(W*0.82, H*0.93, 160, 76, 0x6a1b9a).setStrokeStyle(5, 0xFFD700).setInteractive({ useHandCursor: true });
-    this.add.text(W*0.82, H*0.93, "SHOP", { fontSize:"34px", color:"#fff", stroke:"#000", strokeThickness:6, fontStyle:"bold" }).setOrigin(0.5);
-    this.shopBtn.on("pointerdown", () => this.openShopModal());
+    this.versionText = this.add.text(W*0.75, H*0.742, "v11 UI", { fontSize:"28px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
 
-    const btn = this.add.rectangle(W/2, H*0.93, 380, 90, 0xff6f00).setStrokeStyle(5, 0xFFD700).setInteractive({ useHandCursor: true });
-    this.add.text(W/2, H*0.93, "ИГРАТЬ!", { fontSize:"52px", color:"#fff", stroke:"#000", strokeThickness:7, fontStyle:"bold" }).setOrigin(0.5);
-    this.tweens.add({ targets:btn, scaleX:1.04, scaleY:1.04, duration:700, yoyo:true, repeat:-1 });
+    const btnY = H*0.94;
+    const btn = this.add.rectangle(W/2, btnY, 410, 86, 0xff6f00).setStrokeStyle(6, 0xFFD700).setInteractive({ useHandCursor: true }).setDepth(4);
+    this.add.text(W/2, btnY, "ИГРАТЬ!", { fontSize:"50px", color:"#fff", stroke:"#000", strokeThickness:7, fontStyle:"bold" }).setOrigin(0.5).setDepth(5);
+    this.tweens.add({ targets:btn, scaleX:1.03, scaleY:1.03, duration:700, yoyo:true, repeat:-1 });
     btn.on("pointerdown", () => this.openNameModal());
+
+    this.refreshPlayerNameText();
+    this.refreshCoinsText();
+    this.refreshModeText();
   }
 
   refreshPlayerNameText() {
@@ -423,7 +507,7 @@ class MenuScene extends Phaser.Scene {
   refreshCoinsText() {
     const coins = getCoins();
     this.registry.set("coins", coins);
-    if (this.coinsText) this.coinsText.setText(`Монеты: ${coins}`);
+    if (this.coinsText) this.coinsText.setText(`🪙 ${coins}`);
   }
 
   refreshModeText() {
@@ -445,17 +529,17 @@ class MenuScene extends Phaser.Scene {
     const missions = getMissionRows();
     this.registry.set("missions", missions);
     missions.forEach((mission, index) => {
-      const y = this.boardY + 138 + index * 36;
+      const y = this.boardY + 98 + index * 34;
       const done = mission.claimed;
       const color = done ? "#7CFF00" : "#fff";
       const label = `${done ? "✅" : "•"} ${mission.title}`;
       const progress = done ? `+${mission.reward} взято` : `${mission.value}/${mission.goal}  (+${mission.reward})`;
-      const left = this.add.text(this.boardX - 270, y, label, {
-        fontSize:"20px", color, stroke:"#000", strokeThickness:4
-      }).setOrigin(0, 0.5);
-      const right = this.add.text(this.boardX + 270, y, progress, {
-        fontSize:"20px", color: done ? "#7CFF00" : "#FFD700", stroke:"#000", strokeThickness:4, fontStyle:"bold"
-      }).setOrigin(1, 0.5);
+      const left = this.add.text(this.boardX - 250, y, label, {
+        fontSize:"18px", color, stroke:"#000", strokeThickness:4
+      }).setOrigin(0, 0.5).setDepth(4);
+      const right = this.add.text(this.boardX + 250, y, progress, {
+        fontSize:"18px", color: done ? "#7CFF00" : "#FFD700", stroke:"#000", strokeThickness:4, fontStyle:"bold"
+      }).setOrigin(1, 0.5).setDepth(4);
       this.missionTexts.push(left, right);
     });
   }
@@ -463,25 +547,24 @@ class MenuScene extends Phaser.Scene {
   drawLeaderboardShell() {
     const { width: W, height: H } = this.scale;
     const boardX = W / 2;
-    const boardY = H * 0.80;
+    const boardY = H * 0.83;
     this.boardX = boardX;
     this.boardY = boardY;
 
-    this.add.rectangle(boardX, boardY, 540, 220, 0x000000, 0.45).setStrokeStyle(4, 0xFFD700);
-    this.boardTitle = this.add.text(boardX, boardY - 86, "🏆 ТОП ИГРОКОВ", {
-      fontSize:"34px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
-    }).setOrigin(0.5);
-    this.boardModeText = this.add.text(boardX, boardY - 56, LeaderboardService.statusLabel, {
-      fontSize:"18px", color:"#00e5ff", stroke:"#000", strokeThickness:4, fontStyle:"bold"
-    }).setOrigin(0.5);
-    this.boardLoadingText = this.add.text(boardX, boardY, "Загрузка рейтинга...", {
-      fontSize:"26px", align:"center", color:"#fff", stroke:"#000", strokeThickness:4
-    }).setOrigin(0.5);
+    this.boardPanel = this.add.rectangle(boardX, boardY, 560, 238, 0x000000, 0.46).setStrokeStyle(4, 0xFFD700);
+    this.boardTitle = this.add.text(boardX, boardY - 94, "🏆 ТОП ИГРОКОВ", {
+      fontSize:"30px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    }).setOrigin(0.5).setDepth(4);
+    this.boardModeText = this.add.text(boardX, boardY - 66, LeaderboardService.statusLabel, {
+      fontSize:"17px", color:"#00e5ff", stroke:"#000", strokeThickness:4, fontStyle:"bold"
+    }).setOrigin(0.5).setDepth(4);
+    this.boardLoadingText = this.add.text(boardX, boardY - 6, "Загрузка рейтинга...", {
+      fontSize:"24px", align:"center", color:"#fff", stroke:"#000", strokeThickness:4
+    }).setOrigin(0.5).setDepth(4);
 
-    this.missionBox = this.add.rectangle(boardX, boardY + 170, 600, 165, 0x000000, 0.38).setStrokeStyle(4, 0x00e5ff);
-    this.missionTitle = this.add.text(boardX, boardY + 103, "🎯 МИССИИ", {
-      fontSize:"30px", color:"#00e5ff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
-    }).setOrigin(0.5);
+    this.missionTitle = this.add.text(boardX, boardY + 64, "🎯 МИССИИ", {
+      fontSize:"28px", color:"#00e5ff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    }).setOrigin(0.5).setDepth(4);
     this.missionTexts = [];
     this.refreshMissionTexts();
   }
@@ -508,14 +591,14 @@ class MenuScene extends Phaser.Scene {
 
     this.boardLoadingText.setVisible(false);
     rows.slice(0, 5).forEach((row, index) => {
-      const y = this.boardY - 42 + index * 34;
+      const y = this.boardY - 34 + index * 30;
       const prefix = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index+1}.`;
-      const left = this.add.text(this.boardX - 220, y, `${prefix} ${row.name}`, {
-        fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:4
-      }).setOrigin(0, 0.5);
-      const right = this.add.text(this.boardX + 220, y, `${row.score}`, {
-        fontSize:"24px", color:"#7CFF00", stroke:"#000", strokeThickness:4, fontStyle:"bold"
-      }).setOrigin(1, 0.5);
+      const left = this.add.text(this.boardX - 228, y, `${prefix} ${row.name}`, {
+        fontSize:"22px", color:"#fff", stroke:"#000", strokeThickness:4
+      }).setOrigin(0, 0.5).setDepth(4);
+      const right = this.add.text(this.boardX + 228, y, `${row.score}`, {
+        fontSize:"22px", color:"#7CFF00", stroke:"#000", strokeThickness:4, fontStyle:"bold"
+      }).setOrigin(1, 0.5).setDepth(4);
       this.boardRowTexts.push(left, right);
     });
   }
@@ -645,11 +728,24 @@ class GameScene extends Phaser.Scene {
     this.doubleScoreReady = false;
     this.slowMoActive = false;
     this.slowMoReady = false;
+    this.waveIndex = 0;
+    this.waveBirdTarget = 0;
+    this.waveBirdSpawned = 0;
+    this.waveInTransition = false;
+    this.waveProfile = null;
+    this.spawnDelayCurrent = 1100;
+    this.speedWaveMultiplier = 1;
+    this.bossActive = false;
+    this.bossSpawnedThisWave = false;
+    this.bossBird = null;
+    this.timePressureLevel = 0;
   }
 
   create() {
     const { width: W, height: H } = this.scale;
-    this.add.image(W/2, H/2, "bg").setDisplaySize(W, H);
+    this.skyBackdrop = this.add.rectangle(W/2, H/2, W, H, 0x8fd3ff, 1);
+    this.bg = this.add.image(W/2, H/2, "bgDay").setDisplaySize(W, H);
+    this.themeOverlay = this.add.rectangle(W/2, H/2, W, H, 0x8be9ff, 0.08).setDepth(1);
 
     this.birds   = this.physics.add.group();
     this.bullets = this.physics.add.group();
@@ -670,12 +766,16 @@ class GameScene extends Phaser.Scene {
       this.missIcons.push(ic);
     }
 
-    this.add.rectangle(W/2, 60, W, 120, 0x5d4037, 0.88);
-    this.add.rectangle(W/2, 60, W-4, 116, 0x6d4c41, 0.5);
+    this.topBar = this.add.rectangle(W/2, 60, W, 120, 0x5d4037, 0.88);
+    this.topBarInner = this.add.rectangle(W/2, 60, W-4, 116, 0x6d4c41, 0.5);
     this.timeText  = this.add.text(24, 20, `⏱ ${this.timeLeft}`, { fontSize:"44px", color:"#FFD700", stroke:"#000", strokeThickness:6 });
     this.scoreText = this.add.text(W/2, 20, "SCORE: 0", { fontSize:"44px", color:"#fff", stroke:"#000", strokeThickness:6 }).setOrigin(0.5, 0);
     this.modeHudText = this.add.text(W/2, 112, this.mode.title, { fontSize:"22px", color:"#00e5ff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5,0);
     this.comboText = this.add.text(W/2, 72, "", { fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0);
+    this.waveText = this.add.text(W/2, 144, "", { fontSize:"26px", color:"#7CFF00", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0);
+    this.waveSubText = this.add.text(W/2, 174, "", { fontSize:"18px", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5, 0);
+    this.bossHpText = this.add.text(W/2, 202, "", { fontSize:"28px", color:"#ff8a65", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0).setVisible(false);
+    this.themeNameText = this.add.text(W/2, 228, "", { fontSize:"18px", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5, 0);
     this.livesText = this.add.text(W-20, 20, "❤❤❤", { fontSize:"38px", color:"#ff4d4d", stroke:"#000", strokeThickness:5 }).setOrigin(1, 0);
     this.playerText = this.add.text(24, 132, `Игрок: ${this.playerName}`, {
       fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:4
@@ -732,11 +832,12 @@ class GameScene extends Phaser.Scene {
       this.chargeLabel.setText("");
     });
 
-    this.spawnEvent = this.time.addEvent({ delay:1100, callback:this.spawnBird, callbackScope:this, loop:true });
+    this.applyWaveTheme(this.getThemeForWaveProfile("balanced"), { silent: true });
+    this.startWave(1);
     this.timerEvent = this.time.addEvent({ delay:1000, callback:this.updateGameTimer, callbackScope:this, loop:true });
   }
 
-  update() {
+  update(time, delta) {
     if(this.isGameOver) return;
     const { width:W, height:H } = this.scale;
 
@@ -766,8 +867,246 @@ class GameScene extends Phaser.Scene {
     const birdList = this.birds.children.entries.slice();
     for(const bird of birdList) {
       if(!bird.active) continue;
-      if(bird.x < -180 || bird.x > W+180 || bird.y < -180 || bird.y > H+180) {
+      if(!bird.isBoss && (bird.x < -180 || bird.x > W+180 || bird.y < -180 || bird.y > H+180)) {
         bird.destroy();
+      }
+    }
+
+    this.checkWaveProgress();
+    this.updateWeatherLayer(delta || 16);
+  }
+
+  getWaveProfile(index) {
+    const cycle = (index - 1) % 4;
+    if (cycle === 0) return { id: "balanced", label: "Сбалансированная стая", weights: { blue: 56, red: 22, black: 10, gold: 12 } };
+    if (cycle === 1) return { id: "speed", label: "Шторм быстрых птиц", weights: { blue: 35, red: 45, black: 10, gold: 10 } };
+    if (cycle === 2) return { id: "gold", label: "Золотая лихорадка", weights: { blue: 28, red: 18, black: 8, gold: 46 } };
+    return { id: "shadow", label: "Теневая волна", weights: { blue: 34, red: 24, black: 26, gold: 16 } };
+  }
+
+  getAliveBirdCount(includeBoss = true) {
+    return this.birds.children.entries.filter((bird) => bird.active && (includeBoss || !bird.isBoss)).length;
+  }
+
+  showWaveBanner(title, subtitle = "") {
+    const centerX = this.scale.width / 2;
+    const panel = this.add.rectangle(centerX, 300, 420, subtitle ? 112 : 84, 0x000000, 0.42).setStrokeStyle(4, 0xFFD700).setDepth(28);
+    const t1 = this.add.text(centerX, subtitle ? 278 : 300, title, {
+      fontSize:"42px", color:"#FFD700", stroke:"#000", strokeThickness:7, fontStyle:"bold"
+    }).setOrigin(0.5).setDepth(29);
+    const nodes = [panel, t1];
+    if (subtitle) {
+      nodes.push(this.add.text(centerX, 322, subtitle, {
+        fontSize:"22px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+      }).setOrigin(0.5).setDepth(29));
+    }
+    this.tweens.add({
+      targets:nodes,
+      alpha:0,
+      y:'-=28',
+      duration:1100,
+      delay:700,
+      onComplete:() => nodes.forEach((node) => node.destroy())
+    });
+  }
+
+  getThemeForWaveProfile(profileId, forceBoss = false) {
+    if (forceBoss) return WAVE_THEMES.boss;
+    return WAVE_THEMES[profileId] || WAVE_THEMES.balanced;
+  }
+
+  buildWeatherLayer(theme) {
+    if (this.weatherParticles) {
+      this.weatherParticles.destroy(true);
+      this.weatherParticles = null;
+    }
+    this.weatherParticles = this.add.group();
+    const { width: W, height: H } = this.scale;
+    const kind = theme.weather;
+    const createParticle = (shape, x, y, color, alpha) => {
+      const obj = shape === 'circle'
+        ? this.add.circle(x, y, 2, color, alpha)
+        : this.add.rectangle(x, y, shape === 'rain' ? 3 : 4, shape === 'rain' ? 22 : 4, color, alpha);
+      obj.setDepth(3);
+      this.weatherParticles.add(obj);
+      return obj;
+    };
+
+    const count = kind === 'rain' ? 60 : kind === 'clouds' ? 14 : kind === 'stars' ? 42 : kind === 'sparkles' ? 28 : 34;
+    for (let i = 0; i < count; i++) {
+      if (kind === 'rain') {
+        const p = createParticle('rain', Phaser.Math.Between(0, W), Phaser.Math.Between(-H, H), 0xb3e5fc, 0.45);
+        p.speedY = Phaser.Math.Between(850, 1150);
+        p.speedX = Phaser.Math.Between(-150, -60);
+      } else if (kind === 'clouds') {
+        const p = this.add.ellipse(Phaser.Math.Between(0, W), Phaser.Math.Between(120, H * 0.52), Phaser.Math.Between(120, 220), Phaser.Math.Between(28, 54), 0xffffff, 0.11);
+        p.setDepth(2);
+        p.speedX = Phaser.Math.Between(10, 24);
+        p.scaleY = Phaser.Math.FloatBetween(0.8, 1.2);
+        this.weatherParticles.add(p);
+      } else if (kind === 'stars') {
+        const p = createParticle('circle', Phaser.Math.Between(0, W), Phaser.Math.Between(110, H * 0.65), 0xffffff, Phaser.Math.FloatBetween(0.35, 0.9));
+        p.baseAlpha = p.alpha;
+        p.twinkleOffset = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      } else if (kind === 'sparkles') {
+        const p = createParticle('circle', Phaser.Math.Between(0, W), Phaser.Math.Between(120, H * 0.68), i % 3 === 0 ? 0xfff59d : 0xffd54f, Phaser.Math.FloatBetween(0.35, 0.85));
+        p.baseAlpha = p.alpha;
+        p.twinkleOffset = Phaser.Math.FloatBetween(0, Math.PI * 2);
+        p.floatY = Phaser.Math.FloatBetween(0.2, 0.7);
+      } else {
+        const p = createParticle('circle', Phaser.Math.Between(0, W), Phaser.Math.Between(150, H), i % 2 === 0 ? 0xff7043 : 0xffcc80, Phaser.Math.FloatBetween(0.3, 0.8));
+        p.speedY = Phaser.Math.Between(40, 110);
+        p.driftX = Phaser.Math.FloatBetween(-0.2, 0.2);
+      }
+    }
+  }
+
+  applyWaveTheme(theme, options = {}) {
+    if (!theme || !this.bg) return;
+    this.currentTheme = theme;
+    if (theme.bgKey && this.bg.texture?.key !== theme.bgKey) {
+      this.bg.setTexture(theme.bgKey).setDisplaySize(this.scale.width, this.scale.height);
+    }
+    this.bg.clearTint();
+    if (this.skyBackdrop) this.skyBackdrop.setFillStyle(theme.sky, 1);
+    if (this.themeOverlay) this.themeOverlay.setFillStyle(theme.overlay, Math.min(theme.overlayAlpha, 0.18));
+    if (this.topBar) this.topBar.setFillStyle(theme.topBar, 0.88);
+    if (this.topBarInner) this.topBarInner.setFillStyle(theme.panel, 0.55);
+    if (this.waveText) this.waveText.setColor(theme.accent);
+    if (this.waveSubText) this.waveSubText.setColor(theme.subAccent);
+    if (this.modeHudText) this.modeHudText.setColor(theme.accent);
+    if (this.themeNameText) this.themeNameText.setText(`ТЕМА: ${theme.name}`).setColor(theme.subAccent);
+    this.buildWeatherLayer(theme);
+    if (!options.silent) {
+      const label = this.add.text(this.scale.width / 2, 246, `${theme.name}`, {
+        fontSize:"24px", color:theme.subAccent, stroke:"#000", strokeThickness:5, fontStyle:"bold"
+      }).setOrigin(0.5).setDepth(27);
+      this.tweens.add({ targets:label, alpha:0, y:210, duration:1200, onComplete:() => label.destroy() });
+    }
+  }
+
+  updateWeatherLayer(delta) {
+    if (!this.weatherParticles) return;
+    const { width: W, height: H } = this.scale;
+    const secs = delta / 1000;
+    this.weatherParticles.getChildren().forEach((p) => {
+      if (!p.active) return;
+      if (this.currentTheme?.weather === 'rain') {
+        p.x += p.speedX * secs;
+        p.y += p.speedY * secs;
+        if (p.y > H + 40 || p.x < -40) {
+          p.x = Phaser.Math.Between(0, W + 80);
+          p.y = Phaser.Math.Between(-220, -40);
+        }
+      } else if (this.currentTheme?.weather === 'clouds') {
+        p.x += p.speedX * secs;
+        if (p.x - p.width/2 > W + 40) p.x = -p.width / 2 - 40;
+      } else if (this.currentTheme?.weather === 'stars' || this.currentTheme?.weather === 'sparkles') {
+        const t = this.time.now / 500 + (p.twinkleOffset || 0);
+        p.alpha = Math.max(0.15, (p.baseAlpha || 0.5) + Math.sin(t) * 0.25);
+        if (this.currentTheme?.weather === 'sparkles') p.y += Math.sin(this.time.now / 700 + (p.twinkleOffset || 0)) * (p.floatY || 0.4);
+      } else if (this.currentTheme?.weather === 'embers') {
+        p.x += Math.sin(this.time.now / 400 + p.y * 0.01) * (p.driftX || 0.1);
+        p.y -= p.speedY * secs;
+        if (p.y < 110) {
+          p.x = Phaser.Math.Between(0, W);
+          p.y = Phaser.Math.Between(H - 80, H + 40);
+        }
+      }
+    });
+  }
+
+  startWave(index) {
+    if (this.isGameOver) return;
+    this.waveIndex = index;
+    this.waveInTransition = false;
+    this.waveProfile = this.getWaveProfile(index);
+    this.applyWaveTheme(this.getThemeForWaveProfile(this.waveProfile.id));
+    const modeBonus = this.modeId === "timeAttack" ? -1 : 0;
+    this.waveBirdTarget = Math.max(6, 7 + index * 2 + modeBonus);
+    this.waveBirdSpawned = 0;
+    this.bossSpawnedThisWave = false;
+    this.bossActive = false;
+    this.bossBird = null;
+    const pressureFactor = this.timePressureLevel === 2 ? 140 : this.timePressureLevel === 1 ? 80 : 0;
+    this.spawnDelayCurrent = Math.max(380, (this.modeId === "timeAttack" ? 930 : 1040) - index * 55 - pressureFactor);
+    this.speedWaveMultiplier = 1 + (index - 1) * 0.1 + (this.modeId === "timeAttack" ? 0.06 : 0) + this.timePressureLevel * 0.06;
+    this.waveText.setText(`🌊 WAVE ${index}`);
+    this.waveSubText.setText(`${this.waveProfile.label} • ${this.currentTheme?.name || ""}`);
+    this.bossHpText.setVisible(false).setText("");
+    this.showWaveBanner(`WAVE ${index}`, this.waveProfile.label);
+    this.setSpawnDelay(this.spawnDelayCurrent);
+  }
+
+  scheduleNextWave(delay = 1200) {
+    if (this.isGameOver || this.waveInTransition) return;
+    this.waveInTransition = true;
+    this.showWaveBanner("WAVE CLEAR", `Готовься к wave ${this.waveIndex + 1}`);
+    this.time.delayedCall(delay, () => {
+      if (this.isGameOver) return;
+      this.startWave(this.waveIndex + 1);
+    });
+  }
+
+  shouldSpawnBossThisWave() {
+    return this.waveIndex > 0 && this.waveIndex % 3 === 0;
+  }
+
+  spawnBoss() {
+    if (this.isGameOver || this.bossActive) return;
+    const { width:W } = this.scale;
+    this.bossSpawnedThisWave = true;
+    this.bossActive = true;
+    const startLeft = Phaser.Math.Between(0, 1) === 0;
+    const boss = this.birds.create(startLeft ? 120 : W - 120, Phaser.Math.Between(260, 400), this.waveIndex % 2 === 0 ? "birdBlack" : "birdGold");
+    boss.setScale(0.28);
+    boss.isBoss = true;
+    boss.points = 1000 + this.waveIndex * 250;
+    boss.hp = 8 + this.waveIndex * 2 + (this.modeId === "timeAttack" ? 2 : 0);
+    boss.maxHp = boss.hp;
+    boss.setFlipX(!startLeft);
+    boss.body.allowGravity = false;
+    boss.body.setImmovable(true);
+    boss.body.moves = false;
+    this.bossBird = boss;
+
+    boss.moveTween = this.tweens.add({
+      targets:boss,
+      x:startLeft ? W - 120 : 120,
+      duration:Math.max(1800, 3600 - this.waveIndex * 120),
+      yoyo:true,
+      repeat:-1,
+      ease:"Sine.easeInOut"
+    });
+    boss.bobTween = this.tweens.add({
+      targets:boss,
+      y:boss.y + 80,
+      duration:1300,
+      yoyo:true,
+      repeat:-1,
+      ease:"Sine.easeInOut"
+    });
+
+    this.applyWaveTheme(this.getThemeForWaveProfile(this.waveProfile?.id, true));
+    this.bossHpText.setVisible(true).setText(`👑 BOSS HP: ${boss.hp}/${boss.maxHp}`);
+    this.showWaveBanner("👑 BOSS WAVE", `HP ${boss.hp} · награда ${boss.points}`);
+  }
+
+  updateBossHpUI() {
+    if (this.bossBird && this.bossBird.active) {
+      this.bossHpText.setVisible(true).setText(`👑 BOSS HP: ${this.bossBird.hp}/${this.bossBird.maxHp}`);
+    } else {
+      this.bossHpText.setVisible(false).setText("");
+    }
+  }
+
+  checkWaveProgress() {
+    if (this.isGameOver || this.waveInTransition) return;
+    if (!this.bossActive && this.waveBirdSpawned >= this.waveBirdTarget && this.getAliveBirdCount(false) === 0) {
+      if (this.shouldSpawnBossThisWave() && !this.bossSpawnedThisWave) {
+        this.spawnBoss();
+      } else if (!this.shouldSpawnBossThisWave() || this.bossSpawnedThisWave) {
+        this.scheduleNextWave(this.bossSpawnedThisWave ? 1600 : 900);
       }
     }
   }
@@ -955,36 +1294,138 @@ class GameScene extends Phaser.Scene {
   }
 
   spawnBird() {
-    if(this.isGameOver) return;
+    if(this.isGameOver || this.bossActive || this.waveInTransition) return;
+    if (this.waveBirdSpawned >= this.waveBirdTarget) {
+      if (this.spawnEvent) {
+        this.spawnEvent.remove(false);
+        this.spawnEvent = null;
+      }
+      return;
+    }
+
     const { width:W, height:H } = this.scale;
     const side = Phaser.Math.Between(0,1);
+    const profile = this.waveProfile || this.getWaveProfile(this.waveIndex || 1);
     const roll = Phaser.Math.Between(1,100);
+    const w = profile.weights;
     let texture="birdBlue", points=100, speed=Phaser.Math.Between(110,160), scale=0.13, isDanger=false;
-    if(roll>60&&roll<=78)  { texture="birdRed";   points=150; speed=Phaser.Math.Between(180,250); scale=0.12; }
-    else if(roll>78&&roll<=90) { texture="birdBlack"; points=0;   speed=Phaser.Math.Between(200,280); scale=0.115; isDanger=true; }
-    else if(roll>90)           { texture="birdGold";  points=300; speed=Phaser.Math.Between(130,190); scale=0.14; }
+    if (roll <= w.blue) {
+      texture = "birdBlue";
+      points = 100;
+      speed = Phaser.Math.Between(110,160);
+      scale = 0.13;
+    } else if (roll <= w.blue + w.red) {
+      texture = "birdRed";
+      points = 150;
+      speed = Phaser.Math.Between(180,250);
+      scale = 0.12;
+    } else if (roll <= w.blue + w.red + w.black) {
+      texture = "birdBlack";
+      points = 0;
+      speed = Phaser.Math.Between(200,280);
+      scale = 0.115;
+      isDanger = true;
+    } else {
+      texture = "birdGold";
+      points = 300;
+      speed = Phaser.Math.Between(130,190);
+      scale = 0.14;
+    }
 
-    const spawnY  = Phaser.Math.Between(140, Math.floor(H*0.60));
+    const spawnY  = Phaser.Math.Between(180, Math.floor(H*0.60));
     const startX  = side===0 ? -160 : W+160;
     const targetX = side===0 ? W+200 : -200;
-    const targetY = spawnY + Phaser.Math.Between(-80,80);
+    const targetY = spawnY + Phaser.Math.Between(-90,90);
 
     const bird = this.birds.create(startX, spawnY, texture);
     bird.setScale(scale);
     bird.points   = points;
     bird.isDanger = isDanger;
+    bird.isBoss   = false;
     bird.setFlipX(side===1);
-    this.physics.moveTo(bird, targetX, targetY, speed * (this.slowMoActive ? 0.45 : 1));
+    this.physics.moveTo(bird, targetX, targetY, speed * this.speedWaveMultiplier * (this.slowMoActive ? 0.45 : 1));
     this.tweens.add({ targets:bird, y:bird.y+Phaser.Math.Between(-30,30), duration:Phaser.Math.Between(450,850), yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
+
+    this.waveBirdSpawned++;
+    if (this.waveBirdSpawned >= this.waveBirdTarget && this.spawnEvent) {
+      this.spawnEvent.remove(false);
+      this.spawnEvent = null;
+    }
   }
 
   handleBulletHitBird(bullet, bird) {
     if(!bullet.active||!bird.active) return;
     const pts      = bird.points;
     const isDanger = bird.isDanger;
+    const isBoss   = !!bird.isBoss;
     const bx = bird.x, by = bird.y;
 
     bullet.destroy();
+
+    if (isBoss) {
+      bird.hp -= 1;
+      bird.setTintFill(0xffffff);
+      this.time.delayedCall(70, () => {
+        if (bird.active) bird.clearTint();
+      });
+      this.cameras.main.shake(70, 0.006);
+      const chip = this.add.text(bx, by - 42, `-${1}`, {
+        fontSize:"36px", color:"#ff8a65", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+      }).setOrigin(0.5).setDepth(20);
+      this.tweens.add({ targets:chip, y:chip.y-32, alpha:0, duration:360, onComplete:()=>chip.destroy() });
+
+      if (bird.hp > 0) {
+        this.updateBossHpUI();
+        return;
+      }
+
+      if (bird.moveTween) bird.moveTween.remove();
+      if (bird.bobTween) bird.bobTween.remove();
+      bird.destroy();
+      this.bossActive = false;
+      this.bossBird = null;
+      this.applyWaveTheme(this.getThemeForWaveProfile(this.waveProfile?.id));
+      this.updateBossHpUI();
+      this.addCombo();
+      this.sessionHits += 3;
+      this.missStreak = 0;
+      for(let i=0;i<3;i++) this.missIcons[i].setColor("#888");
+
+      this.hitStreak++;
+      for(let i=0;i<3;i++) {
+        this.hitIcons[i].setColor(i < this.hitStreak ? "#FFD700" : "#555");
+        this.hitIcons[i].setText(i < this.hitStreak ? "★" : "◎");
+      }
+      if(this.hitStreak >= 3) {
+        this.hitStreak = 0;
+        this.superReady = true;
+        this.superLabel.setText("⚡ СУПЕР!");
+        this.tweens.add({ targets:this.superLabel, scaleX:1.2, scaleY:1.2, duration:300, yoyo:true, repeat:2 });
+        for(let i=0;i<3;i++) { this.hitIcons[i].setColor("#00e5ff"); this.hitIcons[i].setText("★"); }
+      }
+
+      const bossHit = this.add.image(bx, by, "hit").setScale(1).setTint(0xffb300);
+      this.tweens.add({ targets:bossHit, alpha:0, scale:2.1, duration:500, onComplete:()=>bossHit.destroy() });
+      for(let i=0;i<12;i++){
+        const f = this.add.image(bx, by, "feather")
+          .setScale(0.1+Math.random()*0.1).setRotation(Math.random()*Math.PI*2).setAlpha(0.95).setTint(i % 2 ? 0xffd54f : 0xff7043);
+        this.tweens.add({ targets:f, x:bx+Phaser.Math.Between(-150,150), y:by+Phaser.Math.Between(-120,120),
+          angle:Phaser.Math.Between(-180,180), alpha:0, duration:900+Math.random()*300, ease:"Quad.easeOut", onComplete:()=>f.destroy() });
+      }
+
+      const runMult = this.doubleScoreActive ? 2 : 1;
+      const gained = pts * this.comboMult * runMult;
+      this.score += gained;
+      this.scoreText.setText(`SCORE: ${this.score}`);
+      const bossPopup = this.add.text(bx, by-40, `👑 BOSS DOWN  +${gained}`, {
+        fontSize:"48px", color:"#FFD700", stroke:"#000", strokeThickness:7, fontStyle:"bold", align:"center"
+      }).setOrigin(0.5).setDepth(20);
+      this.tweens.add({ targets:bossPopup, y:bossPopup.y-90, alpha:0, duration:900, ease:"Quad.easeOut", onComplete:()=>bossPopup.destroy() });
+      this.showWaveBanner("👑 БОСС ПОВЕРЖЕН", `+${gained} очков`);
+      this.scheduleNextWave(1400);
+      return;
+    }
+
     bird.destroy();
 
     if(isDanger) {
@@ -1053,12 +1494,17 @@ class GameScene extends Phaser.Scene {
     this.timeLeft--;
     this.timeText.setText(`⏱ ${this.timeLeft}`);
     if(this.timeLeft<=10) this.tweens.add({ targets:this.timeText, alpha:0.2, duration:200, yoyo:true });
-    if(this.timeLeft===40) this.setSpawnDelay(900);
-    if(this.timeLeft===20) this.setSpawnDelay(650);
+    const newPressure = this.timeLeft <= 10 ? 2 : this.timeLeft <= 25 ? 1 : 0;
+    if (newPressure !== this.timePressureLevel) {
+      this.timePressureLevel = newPressure;
+      this.spawnDelayCurrent = Math.max(300, this.spawnDelayCurrent - (newPressure === 2 ? 140 : 70));
+      if (this.spawnEvent) this.setSpawnDelay(this.spawnDelayCurrent);
+    }
     if(this.timeLeft<=0)  this.endGame();
   }
 
   setSpawnDelay(delay) {
+    this.spawnDelayCurrent = delay;
     if(this.spawnEvent) this.spawnEvent.remove(false);
     this.spawnEvent = this.time.addEvent({ delay, callback:this.spawnBird, callbackScope:this, loop:true });
   }
@@ -1081,6 +1527,10 @@ class GameScene extends Phaser.Scene {
     this.isGameOver = true;
     if(this.spawnEvent) this.spawnEvent.remove(false);
     if(this.timerEvent) this.timerEvent.remove(false);
+    if (this.bossBird) {
+      if (this.bossBird.moveTween) this.bossBird.moveTween.remove();
+      if (this.bossBird.bobTween) this.bossBird.bobTween.remove();
+    }
 
     const { width:W, height:H } = this.scale;
     this.add.rectangle(W/2,H/2,W,H,0x000000,0.72);
