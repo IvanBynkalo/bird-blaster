@@ -990,16 +990,32 @@ class GameScene extends Phaser.Scene {
     }
 
     const bulletList = this.bullets.children.entries.slice();
+    const birdList = this.birds.children.entries.slice();
     for(const b of bulletList) {
       if(!b.active || b.counted) continue;
+
+      let sweptHit = false;
+      for (const bird of birdList) {
+        if (!bird.active) continue;
+        if (this.isSweptPreciseHit(b, bird)) {
+          this.handleBulletHitBird(b, bird);
+          sweptHit = true;
+          break;
+        }
+      }
+      if (sweptHit || !b.active) continue;
+
       if(b.x < -80 || b.x > W+80 || b.y < -80 || b.y > H+80) {
         b.counted = true;
         b.destroy();
         this.registerMiss();
+        continue;
       }
+
+      b.prevX = b.x;
+      b.prevY = b.y;
     }
 
-    const birdList = this.birds.children.entries.slice();
     for(const bird of birdList) {
       if(!bird.active) continue;
       if(!bird.isBoss && (bird.x < -180 || bird.x > W+180 || bird.y < -180 || bird.y > H+180)) {
@@ -1372,7 +1388,7 @@ class GameScene extends Phaser.Scene {
 
   applyBulletHitbox(bullet, isSuper = false) {
     if (!bullet?.body) return;
-    const radius = Math.max(8, Math.round(Math.min(bullet.displayWidth, bullet.displayHeight) * (isSuper ? 0.26 : 0.22)));
+    const radius = Math.max(9, Math.round(Math.min(bullet.displayWidth, bullet.displayHeight) * (isSuper ? 0.30 : 0.26)));
     const bodySize = radius * 2;
     const offsetX = (bullet.displayWidth - bodySize) / 2;
     const offsetY = (bullet.displayHeight - bodySize) / 2;
@@ -1381,8 +1397,8 @@ class GameScene extends Phaser.Scene {
 
   applyBirdHitbox(bird) {
     if (!bird?.body) return;
-    const width = Math.max(18, Math.round(bird.displayWidth * (bird.isBoss ? 0.52 : 0.42)));
-    const height = Math.max(18, Math.round(bird.displayHeight * (bird.isBoss ? 0.5 : 0.4)));
+    const width = Math.max(22, Math.round(bird.displayWidth * (bird.isBoss ? 0.58 : 0.50)));
+    const height = Math.max(22, Math.round(bird.displayHeight * (bird.isBoss ? 0.56 : 0.48)));
     bird.body.setSize(width, height, true);
   }
 
@@ -1391,9 +1407,39 @@ class GameScene extends Phaser.Scene {
     const dx = bullet.x - bird.x;
     const dy = bullet.y - bird.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    const bulletRadius = Math.max(8, Math.min(bullet.displayWidth, bullet.displayHeight) * 0.22);
-    const birdRadius = Math.max(18, Math.min(bird.displayWidth, bird.displayHeight) * (bird.isBoss ? 0.3 : 0.22));
+    const bulletRadius = Math.max(9, Math.min(bullet.displayWidth, bullet.displayHeight) * 0.26);
+    const birdRadius = Math.max(20, Math.min(bird.displayWidth, bird.displayHeight) * (bird.isBoss ? 0.34 : 0.28));
     return distance <= bulletRadius + birdRadius;
+  }
+
+  isSweptPreciseHit(bullet, bird) {
+    if (!bullet?.active || !bird?.active) return false;
+    const x1 = Number.isFinite(bullet.prevX) ? bullet.prevX : bullet.x;
+    const y1 = Number.isFinite(bullet.prevY) ? bullet.prevY : bullet.y;
+    const x2 = bullet.x;
+    const y2 = bullet.y;
+    const cx = bird.x;
+    const cy = bird.y;
+    const bulletRadius = Math.max(9, Math.min(bullet.displayWidth, bullet.displayHeight) * 0.26);
+    const birdRadius = Math.max(20, Math.min(bird.displayWidth, bird.displayHeight) * (bird.isBoss ? 0.34 : 0.28));
+    const r = bulletRadius + birdRadius;
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq <= 0.0001) {
+      const ddx = x2 - cx;
+      const ddy = y2 - cy;
+      return (ddx * ddx + ddy * ddy) <= r * r;
+    }
+
+    let t = ((cx - x1) * dx + (cy - y1) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    const px = x1 + dx * t;
+    const py = y1 + dy * t;
+    const ddx = px - cx;
+    const ddy = py - cy;
+    return (ddx * ddx + ddy * ddy) <= r * r;
   }
 
   getGunMuzzle() {
@@ -1424,6 +1470,8 @@ class GameScene extends Phaser.Scene {
       spread.forEach((offset) => {
         const ang = baseAngle + offset;
         const b = this.bullets.create(gx, gy, "bullet");
+        b.prevX = gx;
+        b.prevY = gy;
         b.setScale(0.16 * this.bulletScaleBonus).setTint(0xFFD700);
         this.applyBulletHitbox(b, true);
         const vx = Math.cos(ang) * (speed + 300);
@@ -1451,6 +1499,8 @@ class GameScene extends Phaser.Scene {
     }
 
     const bullet = this.bullets.create(gx, gy, "bullet");
+    bullet.prevX = gx;
+    bullet.prevY = gy;
     bullet.setScale((0.06 + t * 0.06) * this.bulletScaleBonus);
     this.applyBulletHitbox(bullet, false);
     this.physics.moveTo(bullet, tx, ty, speed);
@@ -1699,7 +1749,7 @@ class GameScene extends Phaser.Scene {
 
   handleBulletHitBird(bullet, bird) {
     if(!bullet.active||!bird.active) return;
-    if (!this.isPreciseHit(bullet, bird)) return;
+    if (!this.isPreciseHit(bullet, bird) && !this.isSweptPreciseHit(bullet, bird)) return;
     const pts      = bird.points;
     const isDanger = bird.isDanger;
     const isBoss   = !!bird.isBoss;

@@ -2,6 +2,12 @@
 
 Аркадная мобильная игра на Phaser 3: стреляй по птицам, собирай монеты, открывай улучшения и соревнуйся за рекорд.
 
+
+## v15.5 — Hit detection fix
+- improved bullet and bird hitboxes to a balanced size
+- added swept hit detection so fast bullets no longer pass through birds
+- kept precise contact requirement to avoid large invisible hit zones
+
 ## Запуск
 
 ### Python
