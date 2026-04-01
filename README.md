@@ -144,3 +144,10 @@ service cloud.firestore {
 - [ ] красивые анимации открытия кейсов
 - [ ] дополнительные звуки и музыку
 - [ ] новые режимы игры
+
+
+## v15.8.2 — Bullet shop + split leaderboard polish
+- restored bullet skins section in the shop with images
+- skins must be bought for 2000 coins before use
+- active bullet skin now changes projectile texture in battle
+- clarified separate leaderboards by game mode

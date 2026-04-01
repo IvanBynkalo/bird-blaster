@@ -12,6 +12,18 @@ const SHOP_ITEMS = {
   critTech: { id: "critTech", title: "Crit Tech", maxLevel: 5, basePrice: 450, step: 260 },
   luckyCase: { id: "luckyCase", title: "Lucky Case", price: 350 }
 };
+const BULLET_STYLE_KEY = "bird_blaster_bullet_style_v1";
+const BULLET_OWNED_KEY = "bird_blaster_bullet_owned_v1";
+const BULLET_SKIN_PRICE = 2000;
+const BULLET_STYLES = [
+  { id: "classic", title: "Classic", texture: "bulletClassic" },
+  { id: "laser", title: "Laser", texture: "bulletLaser" },
+  { id: "ice", title: "Ice", texture: "bulletIce" },
+  { id: "flower", title: "Flower", texture: "bulletFlower" },
+  { id: "minion", title: "Minion", texture: "bulletMinion" },
+  { id: "rainbow", title: "Rainbow", texture: "bulletRainbow" },
+  { id: "plasma", title: "Plasma", texture: "bulletPlasma" }
+];
 const GAME_MODE_KEY = "bird_blaster_mode_v1";
 const MISSION_STATE_KEY = "bird_blaster_missions_v1";
 const GAME_MODES = {
@@ -173,6 +185,81 @@ function saveShopState(state) {
     localStorage.setItem(SHOP_STATE_KEY, JSON.stringify(safe));
   } catch (e) {}
   return safe;
+}
+
+
+function getActiveBulletStyle() {
+  try {
+    const raw = String(localStorage.getItem(BULLET_STYLE_KEY) || "classic");
+    const safe = BULLET_STYLES.some((s) => s.id === raw) ? raw : "classic";
+    return isBulletStyleOwned(safe) ? safe : "classic";
+  } catch (e) {
+    return "classic";
+  }
+}
+
+function setActiveBulletStyle(styleId) {
+  const safe = BULLET_STYLES.some((s) => s.id === styleId) ? styleId : "classic";
+  const finalStyle = isBulletStyleOwned(safe) ? safe : "classic";
+  try {
+    localStorage.setItem(BULLET_STYLE_KEY, finalStyle);
+  } catch (e) {}
+  return finalStyle;
+}
+
+function getBulletStyleMeta(styleId = getActiveBulletStyle()) {
+  return BULLET_STYLES.find((s) => s.id === styleId) || BULLET_STYLES[0];
+}
+
+function getBulletTextureKey(styleId = getActiveBulletStyle()) {
+  return getBulletStyleMeta(styleId).texture;
+}
+
+function loadOwnedBulletStyles() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(BULLET_OWNED_KEY) || '{}');
+    const safe = { classic: true };
+    BULLET_STYLES.forEach((style) => {
+      if (style.id === 'classic') {
+        safe.classic = true;
+      } else {
+        safe[style.id] = !!raw[style.id];
+      }
+    });
+    return safe;
+  } catch (e) {
+    const safe = { classic: true };
+    BULLET_STYLES.forEach((style) => { if (style.id !== 'classic') safe[style.id] = false; });
+    return safe;
+  }
+}
+
+function saveOwnedBulletStyles(state) {
+  const safe = { classic: true };
+  BULLET_STYLES.forEach((style) => {
+    if (style.id === 'classic') safe.classic = true;
+    else safe[style.id] = !!state?.[style.id];
+  });
+  try { localStorage.setItem(BULLET_OWNED_KEY, JSON.stringify(safe)); } catch (e) {}
+  return safe;
+}
+
+function isBulletStyleOwned(styleId) {
+  const owned = loadOwnedBulletStyles();
+  return !!owned[styleId];
+}
+
+function buyBulletStyle(styleId) {
+  if (!BULLET_STYLES.some((s) => s.id === styleId)) return { ok: false, reason: 'missing' };
+  if (styleId === 'classic') return { ok: false, reason: 'free' };
+  const owned = loadOwnedBulletStyles();
+  if (owned[styleId]) return { ok: false, reason: 'owned', owned, coins: getCoins() };
+  const coins = getCoins();
+  if (coins < BULLET_SKIN_PRICE) return { ok: false, reason: 'coins', owned, coins };
+  setCoins(coins - BULLET_SKIN_PRICE);
+  owned[styleId] = true;
+  saveOwnedBulletStyles(owned);
+  return { ok: true, owned, coins: getCoins() };
 }
 
 function buyShopItem(itemId) {
@@ -518,6 +605,13 @@ class BootScene extends Phaser.Scene {
     this.load.image("birdGold",  "assets/bird_gold.png");
     this.load.image("birdBlack", "assets/bird_black.png");
     this.load.image("bullet",    "assets/bullet.png");
+    this.load.image("bulletClassic", "assets/bullets/bullet_classic.png");
+    this.load.image("bulletLaser",   "assets/bullets/bullet_laser.png");
+    this.load.image("bulletIce",     "assets/bullets/bullet_ice.png");
+    this.load.image("bulletFlower",  "assets/bullets/bullet_flower.png");
+    this.load.image("bulletMinion",  "assets/bullets/bullet_minion.png");
+    this.load.image("bulletRainbow", "assets/bullets/bullet_rainbow.png");
+    this.load.image("bulletPlasma",  "assets/bullets/bullet_plasma.png");
     this.load.image("hit",       "assets/hit.png");
     this.load.image("feather",   "assets/feather.png");
   }
@@ -529,6 +623,8 @@ class BootScene extends Phaser.Scene {
     this.registry.set("shopState", loadShopState());
     this.registry.set("gameMode", getSavedGameMode());
     this.registry.set("missions", getMissionRows());
+    this.registry.set("activeBulletStyle", getActiveBulletStyle());
+    this.registry.set("ownedBulletStyles", loadOwnedBulletStyles());
     this.scene.start("MenuScene");
   }
 }
@@ -587,7 +683,7 @@ class MenuScene extends Phaser.Scene {
     this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.86, H*0.702, "v15.8", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v15.8.3", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
@@ -659,7 +755,7 @@ class MenuScene extends Phaser.Scene {
 
     this.boardPanel = this.add.rectangle(boardX, boardY, 580, 282, 0x05111f, 0.58).setStrokeStyle(4, 0xFFD700).setDepth(3);
     this.boardHeader = this.add.rectangle(boardX, boardY - 110, 540, 44, 0x4a2d14, 0.9).setStrokeStyle(2, 0xFFD700).setDepth(3.2);
-    this.boardTitle = this.add.text(boardX, boardY - 110, "🏆 ТОП 5", {
+    this.boardTitle = this.add.text(boardX, boardY - 110, "🏆 ТОП 5 — РЕЖИМ", {
       fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
     this.boardModeText = this.add.text(boardX, boardY - 82, LeaderboardService.getStatusLabel(this.registry.get("gameMode") || getSavedGameMode()), {
@@ -723,6 +819,16 @@ class MenuScene extends Phaser.Scene {
     const buyCritBtn = document.getElementById("buy-crit-tech-btn");
     const openCaseBtn = document.getElementById("open-lucky-case-btn");
     const coinsLabel = document.getElementById("shop-coins-label");
+    const bulletCurrentLabel = document.getElementById("shop-bullet-current");
+    const bulletButtons = {
+      classic: document.getElementById("select-bullet-classic-btn"),
+      laser: document.getElementById("select-bullet-laser-btn"),
+      ice: document.getElementById("select-bullet-ice-btn"),
+      flower: document.getElementById("select-bullet-flower-btn"),
+      minion: document.getElementById("select-bullet-minion-btn"),
+      rainbow: document.getElementById("select-bullet-rainbow-btn"),
+      plasma: document.getElementById("select-bullet-plasma-btn")
+    };
     if (!modal || !closeBtn || !buyBlasterBtn || !buyBulletBtn || !buyRapidBtn || !buyBulletLabBtn || !buyCritBtn || !openCaseBtn || !coinsLabel) return;
 
     const render = () => {
@@ -764,6 +870,26 @@ class MenuScene extends Phaser.Scene {
       if (lvlBullet) lvlBullet.textContent = `Уровень: ${state.bulletLabLevel}/10`;
       if (lvlCrit) lvlCrit.textContent = `Уровень: ${state.critTechLevel}/5`;
       if (caseStat) caseStat.textContent = `Открыто кейсов: ${state.luckyCaseOpened || 0}`;
+      const activeStyle = getActiveBulletStyle();
+      const activeMeta = getBulletStyleMeta(activeStyle);
+      const ownedStyles = loadOwnedBulletStyles();
+      this.registry.set("ownedBulletStyles", ownedStyles);
+      this.registry.set("activeBulletStyle", activeStyle);
+      if (bulletCurrentLabel) bulletCurrentLabel.textContent = `Активная пуля: ${activeMeta.title}`;
+
+      Object.entries(bulletButtons).forEach(([styleId, btn]) => {
+        if (!btn) return;
+        const meta = getBulletStyleMeta(styleId);
+        const owned = !!ownedStyles[styleId];
+        const isActive = styleId === activeStyle;
+        btn.className = 'bullet-skin-btn';
+        btn.dataset.styleId = styleId;
+        btn.innerHTML = `<img src="assets/bullets/bullet_${styleId}.png" alt="${meta.title}"><span class="bullet-skin-name">${meta.title}</span><span class="bullet-skin-action">${!owned ? `Купить — ${BULLET_SKIN_PRICE}` : (isActive ? 'Выбрано ✓' : 'Использовать')}</span>`;
+        btn.disabled = isActive;
+        btn.classList.toggle('owned', owned);
+        btn.classList.toggle('selected', isActive);
+        btn.classList.toggle('locked', !owned);
+      });
     };
 
     const closeModal = () => {
@@ -778,6 +904,7 @@ class MenuScene extends Phaser.Scene {
       buyBulletLabBtn.onclick = null;
       buyCritBtn.onclick = null;
       openCaseBtn.onclick = null;
+      Object.values(bulletButtons).forEach((btn) => { if (btn) btn.onclick = null; });
       document.onkeydown = null;
     };
 
@@ -798,6 +925,22 @@ class MenuScene extends Phaser.Scene {
       }
       render();
     };
+    Object.entries(bulletButtons).forEach(([styleId, btn]) => {
+      if (!btn) return;
+      btn.onclick = () => {
+        if (!isBulletStyleOwned(styleId)) {
+          const res = buyBulletStyle(styleId);
+          if (!res.ok && res.reason === 'coins') {
+            alert(`Недостаточно монет. Нужно ${BULLET_SKIN_PRICE}`);
+            return;
+          }
+        }
+        const active = setActiveBulletStyle(styleId);
+        this.registry.set("activeBulletStyle", active);
+        this.registry.set("ownedBulletStyles", loadOwnedBulletStyles());
+        render();
+      };
+    });
     closeBtn.onclick = closeModal;
     if (closeBtnTop) closeBtnTop.onclick = closeModal;
     modal.onclick = (event) => {
@@ -843,8 +986,14 @@ class MenuScene extends Phaser.Scene {
       this.registry.set("playerName", finalName || "Игрок");
       closeModal();
       hideDomModals();
-      this.scene.stop("MenuScene");
-      this.scene.start("GameScene", { playerName: finalName || "Игрок", gameMode: this.registry.get("gameMode") || getSavedGameMode() });
+      try {
+        if (this.scene.isActive("GameScene")) this.scene.stop("GameScene");
+      } catch (e) {}
+      this.input.enabled = false;
+      this.time.delayedCall(20, () => {
+        try { this.input.enabled = true; } catch (e) {}
+        this.scene.start("GameScene", { playerName: finalName || "Игрок", gameMode: this.registry.get("gameMode") || getSavedGameMode() });
+      });
     };
 
     startBtn.onclick = startGame;
@@ -1000,6 +1149,18 @@ class GameScene extends Phaser.Scene {
       this.shoot(this.chargeX, this.chargeY, held);
       this.chargeBar.width = 0;
       this.chargeLabel.setText("");
+    });
+
+    this.events.once("shutdown", () => {
+      try { this.input.removeAllListeners(); } catch (e) {}
+      try { if (this.spawnEvent) this.spawnEvent.remove(false); } catch (e) {}
+      try { if (this.timerEvent) this.timerEvent.remove(false); } catch (e) {}
+      try { if (this.transitionEvent) this.transitionEvent.remove(false); } catch (e) {}
+      try { if (this.slowMoTimer) this.slowMoTimer.remove(false); } catch (e) {}
+      try { if (this.doubleScoreTimer) this.doubleScoreTimer.remove(false); } catch (e) {}
+      try { hideDomModals(); } catch (e) {}
+      this.isHolding = false;
+      this.isGameOver = true;
     });
 
     this.applyWaveTheme(this.getThemeForWaveProfile("balanced"), { silent: true });
@@ -1508,7 +1669,7 @@ class GameScene extends Phaser.Scene {
       const spread    = [-0.18, 0, 0.18];
       spread.forEach((offset) => {
         const ang = baseAngle + offset;
-        const b = this.bullets.create(gx, gy, "bullet");
+        const b = this.bullets.create(gx, gy, getBulletTextureKey());
         b.prevX = gx;
         b.prevY = gy;
         b.setScale(0.16 * this.bulletScaleBonus).setTint(0xFFD700);
@@ -1537,7 +1698,7 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
-    const bullet = this.bullets.create(gx, gy, "bullet");
+    const bullet = this.bullets.create(gx, gy, getBulletTextureKey());
     bullet.prevX = gx;
     bullet.prevY = gy;
     bullet.setScale((0.06 + t * 0.06) * this.bulletScaleBonus);
@@ -2022,7 +2183,14 @@ class GameScene extends Phaser.Scene {
     const btn=this.add.rectangle(W/2,H/2+348,400,90,0xff6f00).setStrokeStyle(5,0xFFD700).setInteractive({ useHandCursor: true });
     this.add.text(W/2,H/2+348,"МЕНЮ",{ fontSize:"48px", color:"#fff", stroke:"#000", strokeThickness:7, fontStyle:"bold" }).setOrigin(0.5);
     this.tweens.add({ targets:btn, scaleX:1.05, scaleY:1.05, duration:600, yoyo:true, repeat:-1 });
-    btn.on("pointerdown", ()=>{ hideDomModals(); this.scene.stop("GameScene"); this.scene.start("MenuScene"); });
+    btn.once("pointerdown", ()=>{
+      hideDomModals();
+      btn.disableInteractive();
+      this.input.enabled = false;
+      this.time.delayedCall(20, () => {
+        this.scene.start("MenuScene");
+      });
+    });
 
     const rows = await LeaderboardService.addScore(this.playerName, finalScore, this.modeId);
     const topRows = Array.isArray(rows) ? rows : [];
