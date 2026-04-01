@@ -6,7 +6,11 @@ const COINS_KEY = "bird_blaster_coins_v1";
 const SHOP_STATE_KEY = "bird_blaster_shop_v1";
 const SHOP_ITEMS = {
   blasterPro: { id: "blasterPro", title: "Blaster PRO", price: 500 },
-  bigBullet: { id: "bigBullet", title: "Big Bullet", price: 300 }
+  bigBullet: { id: "bigBullet", title: "Big Bullet", price: 300 },
+  fireRate: { id: "fireRate", title: "Rapid Fire", maxLevel: 10, basePrice: 250, step: 170 },
+  bulletLab: { id: "bulletLab", title: "Bullet Lab", maxLevel: 10, basePrice: 220, step: 160 },
+  critTech: { id: "critTech", title: "Crit Tech", maxLevel: 5, basePrice: 450, step: 260 },
+  luckyCase: { id: "luckyCase", title: "Lucky Case", price: 350 }
 };
 const GAME_MODE_KEY = "bird_blaster_mode_v1";
 const MISSION_STATE_KEY = "bird_blaster_missions_v1";
@@ -117,15 +121,26 @@ function loadShopState() {
     const raw = JSON.parse(localStorage.getItem(SHOP_STATE_KEY) || '{}');
     return {
       blasterPro: !!raw.blasterPro,
-      bigBullet: !!raw.bigBullet
+      bigBullet: !!raw.bigBullet,
+      fireRateLevel: Math.max(0, Math.min(10, Number(raw.fireRateLevel) || 0)),
+      bulletLabLevel: Math.max(0, Math.min(10, Number(raw.bulletLabLevel) || 0)),
+      critTechLevel: Math.max(0, Math.min(5, Number(raw.critTechLevel) || 0)),
+      luckyCaseOpened: Math.max(0, Number(raw.luckyCaseOpened) || 0)
     };
   } catch (e) {
-    return { blasterPro: false, bigBullet: false };
+    return { blasterPro: false, bigBullet: false, fireRateLevel: 0, bulletLabLevel: 0, critTechLevel: 0, luckyCaseOpened: 0 };
   }
 }
 
 function saveShopState(state) {
-  const safe = { blasterPro: !!state?.blasterPro, bigBullet: !!state?.bigBullet };
+  const safe = {
+    blasterPro: !!state?.blasterPro,
+    bigBullet: !!state?.bigBullet,
+    fireRateLevel: Math.max(0, Math.min(10, Number(state?.fireRateLevel) || 0)),
+    bulletLabLevel: Math.max(0, Math.min(10, Number(state?.bulletLabLevel) || 0)),
+    critTechLevel: Math.max(0, Math.min(5, Number(state?.critTechLevel) || 0)),
+    luckyCaseOpened: Math.max(0, Number(state?.luckyCaseOpened) || 0)
+  };
   try {
     localStorage.setItem(SHOP_STATE_KEY, JSON.stringify(safe));
   } catch (e) {}
@@ -143,6 +158,61 @@ function buyShopItem(itemId) {
   state[itemId] = true;
   saveShopState(state);
   return { ok: true, coins: getCoins(), state };
+}
+
+function getUpgradeMeta(upgradeId) {
+  if (upgradeId === 'fireRate') return { stateKey: 'fireRateLevel', maxLevel: SHOP_ITEMS.fireRate.maxLevel, basePrice: SHOP_ITEMS.fireRate.basePrice, step: SHOP_ITEMS.fireRate.step };
+  if (upgradeId === 'bulletLab') return { stateKey: 'bulletLabLevel', maxLevel: SHOP_ITEMS.bulletLab.maxLevel, basePrice: SHOP_ITEMS.bulletLab.basePrice, step: SHOP_ITEMS.bulletLab.step };
+  if (upgradeId === 'critTech') return { stateKey: 'critTechLevel', maxLevel: SHOP_ITEMS.critTech.maxLevel, basePrice: SHOP_ITEMS.critTech.basePrice, step: SHOP_ITEMS.critTech.step };
+  return null;
+}
+
+function getUpgradePrice(upgradeId, level) {
+  const meta = getUpgradeMeta(upgradeId);
+  if (!meta) return 0;
+  return meta.basePrice + level * meta.step;
+}
+
+function buyUpgrade(upgradeId) {
+  const meta = getUpgradeMeta(upgradeId);
+  if (!meta) return { ok: false, reason: 'missing' };
+  const state = loadShopState();
+  const level = state[meta.stateKey] || 0;
+  if (level >= meta.maxLevel) return { ok: false, reason: 'max', state, coins: getCoins() };
+  const price = getUpgradePrice(upgradeId, level);
+  const coins = getCoins();
+  if (coins < price) return { ok: false, reason: 'coins', coins, state, price };
+  setCoins(coins - price);
+  state[meta.stateKey] = level + 1;
+  saveShopState(state);
+  return { ok: true, state, coins: getCoins(), level: state[meta.stateKey], price };
+}
+
+function openLuckyCase() {
+  const state = loadShopState();
+  const price = SHOP_ITEMS.luckyCase.price;
+  const coins = getCoins();
+  if (coins < price) return { ok: false, reason: 'coins', coins, state, price };
+  setCoins(coins - price);
+  state.luckyCaseOpened = (state.luckyCaseOpened || 0) + 1;
+  const roll = Math.random();
+  let reward = null;
+  if (roll < 0.45) reward = { type: 'coins', amount: 220 + Math.floor(Math.random() * 181), label: 'Монеты' };
+  else if (roll < 0.70) reward = { type: 'coins', amount: 420 + Math.floor(Math.random() * 231), label: 'Монеты' };
+  else if (roll < 0.84) reward = { type: 'upgrade', upgradeId: 'fireRate', label: 'Rapid Fire +1' };
+  else if (roll < 0.94) reward = { type: 'upgrade', upgradeId: 'bulletLab', label: 'Bullet Lab +1' };
+  else reward = { type: 'upgrade', upgradeId: 'critTech', label: 'Crit Tech +1' };
+
+  if (reward.type === 'coins') {
+    addCoins(reward.amount);
+  } else {
+    const meta = getUpgradeMeta(reward.upgradeId);
+    if (meta) {
+      state[meta.stateKey] = Math.min(meta.maxLevel, (state[meta.stateKey] || 0) + 1);
+    }
+  }
+  saveShopState(state);
+  return { ok: true, state, coins: getCoins(), reward };
 }
 
 function getSavedGameMode() {
@@ -483,7 +553,7 @@ class MenuScene extends Phaser.Scene {
     this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.86, H*0.702, "v11.1", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v13", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
@@ -611,8 +681,12 @@ class MenuScene extends Phaser.Scene {
     const closeBtn = document.getElementById("close-shop-btn");
     const buyBlasterBtn = document.getElementById("buy-blaster-pro-btn");
     const buyBulletBtn = document.getElementById("buy-big-bullet-btn");
+    const buyRapidBtn = document.getElementById("buy-rapid-fire-btn");
+    const buyBulletLabBtn = document.getElementById("buy-bullet-lab-btn");
+    const buyCritBtn = document.getElementById("buy-crit-tech-btn");
+    const openCaseBtn = document.getElementById("open-lucky-case-btn");
     const coinsLabel = document.getElementById("shop-coins-label");
-    if (!modal || !closeBtn || !buyBlasterBtn || !buyBulletBtn || !coinsLabel) return;
+    if (!modal || !closeBtn || !buyBlasterBtn || !buyBulletBtn || !buyRapidBtn || !buyBulletLabBtn || !buyCritBtn || !openCaseBtn || !coinsLabel) return;
 
     const render = () => {
       const state = loadShopState();
@@ -622,14 +696,37 @@ class MenuScene extends Phaser.Scene {
       this.refreshCoinsText();
       coinsLabel.textContent = `Монеты: ${coins}`;
 
-      const config = [
-        { btn: buyBlasterBtn, owned: state.blasterPro, price: SHOP_ITEMS.blasterPro.price, buy: "Купить", own: "Куплено ✓" },
-        { btn: buyBulletBtn, owned: state.bigBullet, price: SHOP_ITEMS.bigBullet.price, buy: "Купить", own: "Куплено ✓" }
-      ];
-      config.forEach(({ btn, owned, price, buy, own }) => {
+      const setupOwned = ({ btn, owned, price }) => {
         btn.disabled = owned;
-        btn.textContent = owned ? own : `${buy} — ${price}`;
-      });
+        btn.textContent = owned ? 'Куплено ✓' : `Купить — ${price}`;
+      };
+      setupOwned({ btn: buyBlasterBtn, owned: state.blasterPro, price: SHOP_ITEMS.blasterPro.price });
+      setupOwned({ btn: buyBulletBtn, owned: state.bigBullet, price: SHOP_ITEMS.bigBullet.price });
+
+      const setupUpgrade = ({ btn, id, levelKey, maxLevel }) => {
+        const level = state[levelKey] || 0;
+        if (level >= maxLevel) {
+          btn.disabled = true;
+          btn.textContent = `MAX LEVEL`;
+        } else {
+          btn.disabled = false;
+          btn.textContent = `Улучшить до ${level + 1} — ${getUpgradePrice(id, level)}`;
+        }
+      };
+      setupUpgrade({ btn: buyRapidBtn, id: 'fireRate', levelKey: 'fireRateLevel', maxLevel: SHOP_ITEMS.fireRate.maxLevel });
+      setupUpgrade({ btn: buyBulletLabBtn, id: 'bulletLab', levelKey: 'bulletLabLevel', maxLevel: SHOP_ITEMS.bulletLab.maxLevel });
+      setupUpgrade({ btn: buyCritBtn, id: 'critTech', levelKey: 'critTechLevel', maxLevel: SHOP_ITEMS.critTech.maxLevel });
+      openCaseBtn.disabled = coins < SHOP_ITEMS.luckyCase.price;
+      openCaseBtn.textContent = `Открыть — ${SHOP_ITEMS.luckyCase.price}`;
+
+      const lvlRapid = document.getElementById('shop-fire-rate-level');
+      const lvlBullet = document.getElementById('shop-bullet-lab-level');
+      const lvlCrit = document.getElementById('shop-crit-tech-level');
+      const caseStat = document.getElementById('shop-case-opened');
+      if (lvlRapid) lvlRapid.textContent = `Уровень: ${state.fireRateLevel}/10`;
+      if (lvlBullet) lvlBullet.textContent = `Уровень: ${state.bulletLabLevel}/10`;
+      if (lvlCrit) lvlCrit.textContent = `Уровень: ${state.critTechLevel}/5`;
+      if (caseStat) caseStat.textContent = `Открыто кейсов: ${state.luckyCaseOpened || 0}`;
     };
 
     const closeModal = () => {
@@ -638,16 +735,27 @@ class MenuScene extends Phaser.Scene {
       closeBtn.onclick = null;
       buyBlasterBtn.onclick = null;
       buyBulletBtn.onclick = null;
+      buyRapidBtn.onclick = null;
+      buyBulletLabBtn.onclick = null;
+      buyCritBtn.onclick = null;
+      openCaseBtn.onclick = null;
     };
 
-    buyBlasterBtn.onclick = () => {
-      const res = buyShopItem("blasterPro");
-      if (!res.ok && res.reason === "coins") alert("Недостаточно монет");
-      render();
-    };
-    buyBulletBtn.onclick = () => {
-      const res = buyShopItem("bigBullet");
-      if (!res.ok && res.reason === "coins") alert("Недостаточно монет");
+    const insufficient = (res) => { if (!res.ok && res.reason === 'coins') alert('Недостаточно монет'); };
+    buyBlasterBtn.onclick = () => { insufficient(buyShopItem("blasterPro")); render(); };
+    buyBulletBtn.onclick = () => { insufficient(buyShopItem("bigBullet")); render(); };
+    buyRapidBtn.onclick = () => { const res = buyUpgrade('fireRate'); insufficient(res); render(); };
+    buyBulletLabBtn.onclick = () => { const res = buyUpgrade('bulletLab'); insufficient(res); render(); };
+    buyCritBtn.onclick = () => { const res = buyUpgrade('critTech'); insufficient(res); render(); };
+    openCaseBtn.onclick = () => {
+      const res = openLuckyCase();
+      if (!res.ok && res.reason === 'coins') {
+        alert('Недостаточно монет');
+      } else if (res.ok) {
+        const reward = res.reward;
+        if (reward.type === 'coins') alert(`🎁 Кейс: +${reward.amount} монет`);
+        else alert(`🎁 Кейс: ${reward.label}`);
+      }
       render();
     };
     closeBtn.onclick = closeModal;
@@ -723,9 +831,11 @@ class GameScene extends Phaser.Scene {
     this.finalLeaderboardRows = [];
     this.coinReward = 0;
     this.shopState = loadShopState();
-    this.shotCooldown = this.shopState.blasterPro ? 170 : 260;
+    const rapidBase = this.shopState.blasterPro ? 170 : 260;
+    this.shotCooldown = Math.max(95, rapidBase - this.shopState.fireRateLevel * 10);
     this.lastShotAt = 0;
-    this.bulletScaleBonus = this.shopState.bigBullet ? 1.3 : 1;
+    this.bulletScaleBonus = (this.shopState.bigBullet ? 1.3 : 1) + this.shopState.bulletLabLevel * 0.06;
+    this.critChance = Math.min(0.28, this.shopState.critTechLevel * 0.05);
     this.sessionHits = 0;
     this.doubleScoreActive = false;
     this.doubleScoreReady = false;
@@ -1551,10 +1661,12 @@ class GameScene extends Phaser.Scene {
 
       const runMult = this.doubleScoreActive ? 2 : 1;
       const waveMult = this.waveProfile?.scoreMult || 1;
-      const gained = Math.round(pts * this.comboMult * runMult * waveMult);
+      const isCrit = Math.random() < this.critChance;
+      const critMult = isCrit ? 2 : 1;
+      const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult);
       this.score += gained;
       this.scoreText.setText(`SCORE: ${this.score}`);
-      const bossPopup = this.add.text(bx, by-40, `👑 BOSS DOWN  +${gained}`, {
+      const bossPopup = this.add.text(bx, by-40, `${isCrit ? 'CRIT!  ' : ''}👑 BOSS DOWN  +${gained}`, {
         fontSize:"48px", color:"#FFD700", stroke:"#000", strokeThickness:7, fontStyle:"bold", align:"center"
       }).setOrigin(0.5).setDepth(20);
       this.tweens.add({ targets:bossPopup, y:bossPopup.y-90, alpha:0, duration:900, ease:"Quad.easeOut", onComplete:()=>bossPopup.destroy() });
@@ -1611,9 +1723,12 @@ class GameScene extends Phaser.Scene {
 
     const runMult = this.doubleScoreActive ? 2 : 1;
     const waveMult = this.waveProfile?.scoreMult || 1;
-    const gained = Math.round(pts * this.comboMult * runMult * waveMult);
-    const color = this.comboMult >= 3 ? "#00e5ff" : (pts>=300?"#FFD700":"#7CFF00");
+    const isCrit = Math.random() < this.critChance;
+    const critMult = isCrit ? 2 : 1;
+    const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult);
+    const color = isCrit ? "#ff8a65" : (this.comboMult >= 3 ? "#00e5ff" : (pts>=300?"#FFD700":"#7CFF00"));
     const popupParts = [`+${gained}`];
+    if (isCrit) popupParts.unshift('CRIT!');
     if (this.comboMult > 1) popupParts.push(`x${this.comboMult}`);
     if (runMult > 1) popupParts.push("x2");
     const popupLabel = popupParts.join("  ");
