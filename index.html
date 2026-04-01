@@ -100,6 +100,12 @@
       gap: 12px;
       margin: 14px 0 18px;
       text-align: left;
+      overflow-y: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+      padding-right: 4px;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
     }
     .shop-item {
       background: rgba(255,255,255,0.08);
@@ -133,6 +139,42 @@
       background: #8d6e63;
       cursor: default;
       opacity: 0.9;
+    }
+
+    #shop-modal .modal-card {
+      width: min(94vw, 520px);
+      max-height: calc(100vh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      padding-bottom: 12px;
+    }
+    .shop-modal-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: linear-gradient(180deg, rgba(78,52,46,0.98) 0%, rgba(78,52,46,0.92) 100%);
+      padding: 4px 32px 8px;
+      margin: -6px -4px 6px;
+      border-bottom: 1px solid rgba(255,215,0,0.25);
+    }
+    .shop-close-x {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0,0,0,0.35);
+      color: #fff;
+      font-size: 30px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .shop-footer {
+      position: sticky;
+      bottom: 0;
+      background: linear-gradient(180deg, rgba(78,52,46,0.2) 0%, rgba(78,52,46,0.98) 40%);
+      padding-top: 6px;
+      margin: 0 -4px -2px;
     }
     #start-game-btn {
       background: #ff6f00;

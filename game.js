@@ -734,12 +734,15 @@ class MenuScene extends Phaser.Scene {
       modal.classList.remove("show");
       modal.setAttribute("aria-hidden", "true");
       closeBtn.onclick = null;
+      if (closeBtnTop) closeBtnTop.onclick = null;
+      modal.onclick = null;
       buyBlasterBtn.onclick = null;
       buyBulletBtn.onclick = null;
       buyRapidBtn.onclick = null;
       buyBulletLabBtn.onclick = null;
       buyCritBtn.onclick = null;
       openCaseBtn.onclick = null;
+      document.onkeydown = null;
     };
 
     const insufficient = (res) => { if (!res.ok && res.reason === 'coins') alert('Недостаточно монет'); };
@@ -760,6 +763,13 @@ class MenuScene extends Phaser.Scene {
       render();
     };
     closeBtn.onclick = closeModal;
+    if (closeBtnTop) closeBtnTop.onclick = closeModal;
+    modal.onclick = (event) => {
+      if (event.target === modal) closeModal();
+    };
+    document.onkeydown = (event) => {
+      if (event.key === "Escape") closeModal();
+    };
     render();
     modal.classList.add("show");
     modal.setAttribute("aria-hidden", "false");
@@ -1307,6 +1317,7 @@ class GameScene extends Phaser.Scene {
     const startLeft = Phaser.Math.Between(0, 1) === 0;
     const boss = this.birds.create(startLeft ? 120 : W - 120, Phaser.Math.Between(260, 400), this.waveIndex % 2 === 0 ? "birdBlack" : "birdGold");
     boss.setScale(0.28);
+    this.applyBirdHitbox(boss);
     boss.isBoss = true;
     boss.points = 1500 + this.waveIndex * 300;
     boss.hp = 7 + this.waveIndex * 2 + (this.modeId === "timeAttack" ? 2 : 0);
@@ -1358,6 +1369,33 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+
+  applyBulletHitbox(bullet, isSuper = false) {
+    if (!bullet?.body) return;
+    const radius = Math.max(8, Math.round(Math.min(bullet.displayWidth, bullet.displayHeight) * (isSuper ? 0.26 : 0.22)));
+    const bodySize = radius * 2;
+    const offsetX = (bullet.displayWidth - bodySize) / 2;
+    const offsetY = (bullet.displayHeight - bodySize) / 2;
+    bullet.body.setCircle(radius, offsetX, offsetY);
+  }
+
+  applyBirdHitbox(bird) {
+    if (!bird?.body) return;
+    const width = Math.max(18, Math.round(bird.displayWidth * (bird.isBoss ? 0.52 : 0.42)));
+    const height = Math.max(18, Math.round(bird.displayHeight * (bird.isBoss ? 0.5 : 0.4)));
+    bird.body.setSize(width, height, true);
+  }
+
+  isPreciseHit(bullet, bird) {
+    if (!bullet?.active || !bird?.active) return false;
+    const dx = bullet.x - bird.x;
+    const dy = bullet.y - bird.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const bulletRadius = Math.max(8, Math.min(bullet.displayWidth, bullet.displayHeight) * 0.22);
+    const birdRadius = Math.max(18, Math.min(bird.displayWidth, bird.displayHeight) * (bird.isBoss ? 0.3 : 0.22));
+    return distance <= bulletRadius + birdRadius;
+  }
+
   getGunMuzzle() {
     const localX = 0;
     const localY = -this.gun.displayHeight * 0.68;
@@ -1387,6 +1425,7 @@ class GameScene extends Phaser.Scene {
         const ang = baseAngle + offset;
         const b = this.bullets.create(gx, gy, "bullet");
         b.setScale(0.16 * this.bulletScaleBonus).setTint(0xFFD700);
+        this.applyBulletHitbox(b, true);
         const vx = Math.cos(ang) * (speed + 300);
         const vy = Math.sin(ang) * (speed + 300);
         b.setVelocity(vx, vy);
@@ -1413,6 +1452,7 @@ class GameScene extends Phaser.Scene {
 
     const bullet = this.bullets.create(gx, gy, "bullet");
     bullet.setScale((0.06 + t * 0.06) * this.bulletScaleBonus);
+    this.applyBulletHitbox(bullet, false);
     this.physics.moveTo(bullet, tx, ty, speed);
     bullet.chargeT = t;
     bullet.fxProfile = this.getBulletFxProfile(t, false, false);
@@ -1642,6 +1682,7 @@ class GameScene extends Phaser.Scene {
 
     const bird = this.birds.create(startX, spawnY, texture);
     bird.setScale(scale);
+    this.applyBirdHitbox(bird);
     bird.points   = points;
     bird.isDanger = isDanger;
     bird.isBoss   = false;
@@ -1658,6 +1699,7 @@ class GameScene extends Phaser.Scene {
 
   handleBulletHitBird(bullet, bird) {
     if(!bullet.active||!bird.active) return;
+    if (!this.isPreciseHit(bullet, bird)) return;
     const pts      = bird.points;
     const isDanger = bird.isDanger;
     const isBoss   = !!bird.isBoss;
