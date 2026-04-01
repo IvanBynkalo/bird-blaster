@@ -25,8 +25,7 @@
       display: block;
       margin: 0 auto;
     }
-    #name-modal,
-    #shop-modal {
+    #name-modal {
       position: fixed;
       inset: 0;
       display: none;
@@ -37,7 +36,7 @@
       padding: 24px;
       box-sizing: border-box;
     }
-    #name-modal.show, #shop-modal.show {
+    #name-modal.show {
       display: flex;
     }
     .modal-card {
@@ -84,49 +83,6 @@
       font-weight: bold;
       cursor: pointer;
     }
-
-    .single-row button {
-      min-width: 180px;
-    }
-    .shop-items {
-      display: grid;
-      gap: 12px;
-      margin: 14px 0 18px;
-      text-align: left;
-    }
-    .shop-item {
-      background: rgba(255,255,255,0.08);
-      border: 2px solid rgba(255,215,0,0.45);
-      border-radius: 16px;
-      padding: 14px;
-    }
-    .shop-title {
-      font-size: 24px;
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
-    .shop-desc {
-      font-size: 16px;
-      opacity: 0.92;
-      margin-bottom: 10px;
-      line-height: 1.35;
-    }
-    .shop-item button {
-      border: none;
-      border-radius: 12px;
-      padding: 12px 14px;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      background: #ff6f00;
-      color: white;
-      width: 100%;
-    }
-    .shop-item button[disabled] {
-      background: #8d6e63;
-      cursor: default;
-      opacity: 0.9;
-    }
     #start-game-btn {
       background: #ff6f00;
       color: white;
@@ -152,32 +108,7 @@
     </div>
   </div>
 
-  <div id="shop-modal" aria-hidden="true">
-    <div class="modal-card">
-      <h2>Магазин</h2>
-      <p id="shop-coins-label">Монеты: 0</p>
-      <div class="shop-items">
-        <div class="shop-item">
-          <div class="shop-title">🔫 Blaster PRO</div>
-          <div class="shop-desc">Меньше задержка между выстрелами</div>
-          <button id="buy-blaster-pro-btn" type="button">Купить — 500</button>
-        </div>
-        <div class="shop-item">
-          <div class="shop-title">💥 Big Bullet</div>
-          <div class="shop-desc">Пуля становится заметно крупнее</div>
-          <button id="buy-big-bullet-btn" type="button">Купить — 300</button>
-        </div>
-      </div>
-      <div class="modal-actions single-row">
-        <button id="close-shop-btn" type="button">Закрыть</button>
-      </div>
-    </div>
-  </div>
-
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
-  <script src="firebase-config.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
