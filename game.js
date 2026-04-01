@@ -12,6 +12,25 @@ const SHOP_ITEMS = {
   critTech: { id: "critTech", title: "Crit Tech", maxLevel: 5, basePrice: 450, step: 260 },
   luckyCase: { id: "luckyCase", title: "Lucky Case", price: 350 }
 };
+const BULLET_COLLECTION_KEY = "bird_blaster_bullet_collection_v1";
+const ACTIVE_BULLET_KEY = "bird_blaster_active_bullet_v1";
+const BULLET_TYPES = {
+  classic: { id: "classic", title: "Classic", emoji: "🔵", rarity: "Стартовая", tint: 0xffffff, trail: 0x00e5ff, speedMul: 1, sizeMul: 1, scoreMul: 1 },
+  laser: { id: "laser", title: "Laser", emoji: "⚡", rarity: "Редкая", tint: 0x80deea, trail: 0x00e5ff, speedMul: 1.25, sizeMul: 0.95, scoreMul: 1 },
+  flower: { id: "flower", title: "Flower", emoji: "🌸", rarity: "Эпик", tint: 0xff9ecb, trail: 0xff77aa, speedMul: 1, sizeMul: 1.05, scoreMul: 1.1 },
+  minion: { id: "minion", title: "Minion", emoji: "🟡", rarity: "Эпик", tint: 0xffeb3b, trail: 0xffc107, speedMul: 1, sizeMul: 1.12, scoreMul: 1 },
+  plasma: { id: "plasma", title: "Plasma", emoji: "🔥", rarity: "Легенд.", tint: 0xff7043, trail: 0xff5722, speedMul: 1.08, sizeMul: 1.08, scoreMul: 1.15 },
+  rainbow: { id: "rainbow", title: "Rainbow", emoji: "🌈", rarity: "Редкая", tint: 0xb388ff, trail: 0xff00ff, speedMul: 1.03, sizeMul: 1.03, scoreMul: 1.2 },
+  ice: { id: "ice", title: "Ice", emoji: "❄️", rarity: "Редкая", tint: 0xb3e5fc, trail: 0x80deea, speedMul: 0.98, sizeMul: 1.04, scoreMul: 1.05 }
+};
+const BULLET_CASE_REWARDS = [
+  { id: 'laser', chance: 0.2 },
+  { id: 'flower', chance: 0.14 },
+  { id: 'minion', chance: 0.14 },
+  { id: 'rainbow', chance: 0.12 },
+  { id: 'plasma', chance: 0.08 },
+  { id: 'ice', chance: 0.16 }
+];
 const GAME_MODE_KEY = "bird_blaster_mode_v1";
 const MISSION_STATE_KEY = "bird_blaster_missions_v1";
 const GAME_MODES = {
@@ -147,6 +166,84 @@ function saveShopState(state) {
   return safe;
 }
 
+function loadBulletCollection() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(BULLET_COLLECTION_KEY) || '{}');
+    return {
+      classic: true,
+      laser: !!raw.laser,
+      flower: !!raw.flower,
+      minion: !!raw.minion,
+      plasma: !!raw.plasma,
+      rainbow: !!raw.rainbow,
+      ice: !!raw.ice
+    };
+  } catch (e) {
+    return { classic: true, laser: false, flower: false, minion: false, plasma: false, rainbow: false, ice: false };
+  }
+}
+
+function saveBulletCollection(state) {
+  const safe = {
+    classic: true,
+    laser: !!state?.laser,
+    flower: !!state?.flower,
+    minion: !!state?.minion,
+    plasma: !!state?.plasma,
+    rainbow: !!state?.rainbow,
+    ice: !!state?.ice
+  };
+  try {
+    localStorage.setItem(BULLET_COLLECTION_KEY, JSON.stringify(safe));
+  } catch (e) {}
+  return safe;
+}
+
+function getActiveBulletId() {
+  try {
+    const id = localStorage.getItem(ACTIVE_BULLET_KEY) || 'classic';
+    const collection = loadBulletCollection();
+    return collection[id] && BULLET_TYPES[id] ? id : 'classic';
+  } catch (e) {
+    return 'classic';
+  }
+}
+
+function setActiveBulletId(id) {
+  const collection = loadBulletCollection();
+  const safe = collection[id] && BULLET_TYPES[id] ? id : 'classic';
+  try {
+    localStorage.setItem(ACTIVE_BULLET_KEY, safe);
+  } catch (e) {}
+  return safe;
+}
+
+function unlockBullet(id) {
+  if (!BULLET_TYPES[id] || id === 'classic') return { ok: false, reason: 'invalid', collection: loadBulletCollection() };
+  const collection = loadBulletCollection();
+  if (collection[id]) return { ok: false, reason: 'owned', collection };
+  collection[id] = true;
+  saveBulletCollection(collection);
+  return { ok: true, id, collection };
+}
+
+function rollBulletReward() {
+  const collection = loadBulletCollection();
+  const locked = BULLET_CASE_REWARDS.filter(entry => !collection[entry.id]);
+  if (!locked.length) return null;
+  const total = locked.reduce((sum, entry) => sum + entry.chance, 0);
+  let roll = Math.random() * total;
+  for (const entry of locked) {
+    roll -= entry.chance;
+    if (roll <= 0) return entry.id;
+  }
+  return locked[locked.length - 1].id;
+}
+
+function getBulletConfig(id) {
+  return BULLET_TYPES[id] || BULLET_TYPES.classic;
+}
+
 function buyShopItem(itemId) {
   const item = SHOP_ITEMS[itemId];
   if (!item) return { ok: false, reason: 'missing' };
@@ -197,22 +294,27 @@ function openLuckyCase() {
   state.luckyCaseOpened = (state.luckyCaseOpened || 0) + 1;
   const roll = Math.random();
   let reward = null;
-  if (roll < 0.45) reward = { type: 'coins', amount: 220 + Math.floor(Math.random() * 181), label: 'Монеты' };
-  else if (roll < 0.70) reward = { type: 'coins', amount: 420 + Math.floor(Math.random() * 231), label: 'Монеты' };
+  if (roll < 0.34) reward = { type: 'coins', amount: 220 + Math.floor(Math.random() * 181), label: 'Монеты' };
+  else if (roll < 0.54) reward = { type: 'coins', amount: 420 + Math.floor(Math.random() * 231), label: 'Монеты' };
+  else if (roll < 0.72) {
+    const bulletId = rollBulletReward();
+    if (bulletId) reward = { type: 'bullet', bulletId, label: `${getBulletConfig(bulletId).emoji} ${getBulletConfig(bulletId).title}` };
+    else reward = { type: 'coins', amount: 800, label: 'Монеты' };
+  }
   else if (roll < 0.84) reward = { type: 'upgrade', upgradeId: 'fireRate', label: 'Rapid Fire +1' };
   else if (roll < 0.94) reward = { type: 'upgrade', upgradeId: 'bulletLab', label: 'Bullet Lab +1' };
   else reward = { type: 'upgrade', upgradeId: 'critTech', label: 'Crit Tech +1' };
 
   if (reward.type === 'coins') {
     addCoins(reward.amount);
-  } else {
+  } else if (reward.type === 'upgrade') {
     const meta = getUpgradeMeta(reward.upgradeId);
-    if (meta) {
-      state[meta.stateKey] = Math.min(meta.maxLevel, (state[meta.stateKey] || 0) + 1);
-    }
+    if (meta) state[meta.stateKey] = Math.min(meta.maxLevel, (state[meta.stateKey] || 0) + 1);
+  } else if (reward.type === 'bullet') {
+    unlockBullet(reward.bulletId);
   }
   saveShopState(state);
-  return { ok: true, state, coins: getCoins(), reward };
+  return { ok: true, state, coins: getCoins(), reward, bulletCollection: loadBulletCollection() };
 }
 
 function getSavedGameMode() {
@@ -496,6 +598,8 @@ class BootScene extends Phaser.Scene {
     this.registry.set("shopState", loadShopState());
     this.registry.set("gameMode", getSavedGameMode());
     this.registry.set("missions", getMissionRows());
+    this.registry.set("bulletCollection", loadBulletCollection());
+    this.registry.set("activeBullet", getActiveBulletId());
     this.scene.start("MenuScene");
   }
 }
@@ -553,7 +657,7 @@ class MenuScene extends Phaser.Scene {
     this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.86, H*0.702, "v13", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v14", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
@@ -686,13 +790,19 @@ class MenuScene extends Phaser.Scene {
     const buyCritBtn = document.getElementById("buy-crit-tech-btn");
     const openCaseBtn = document.getElementById("open-lucky-case-btn");
     const coinsLabel = document.getElementById("shop-coins-label");
-    if (!modal || !closeBtn || !buyBlasterBtn || !buyBulletBtn || !buyRapidBtn || !buyBulletLabBtn || !buyCritBtn || !openCaseBtn || !coinsLabel) return;
+    const activeBulletLabel = document.getElementById("shop-active-bullet-label");
+    const bulletCollectionWrap = document.getElementById("bullet-collection-list");
+    if (!modal || !closeBtn || !buyBlasterBtn || !buyBulletBtn || !buyRapidBtn || !buyBulletLabBtn || !buyCritBtn || !openCaseBtn || !coinsLabel || !activeBulletLabel || !bulletCollectionWrap) return;
 
     const render = () => {
       const state = loadShopState();
       const coins = getCoins();
+      const collection = loadBulletCollection();
+      const activeBullet = getActiveBulletId();
       this.registry.set("shopState", state);
       this.registry.set("coins", coins);
+      this.registry.set("bulletCollection", collection);
+      this.registry.set("activeBullet", activeBullet);
       this.refreshCoinsText();
       coinsLabel.textContent = `Монеты: ${coins}`;
 
@@ -727,6 +837,30 @@ class MenuScene extends Phaser.Scene {
       if (lvlBullet) lvlBullet.textContent = `Уровень: ${state.bulletLabLevel}/10`;
       if (lvlCrit) lvlCrit.textContent = `Уровень: ${state.critTechLevel}/5`;
       if (caseStat) caseStat.textContent = `Открыто кейсов: ${state.luckyCaseOpened || 0}`;
+      const bulletCfg = getBulletConfig(activeBullet);
+      activeBulletLabel.textContent = `Активная пуля: ${bulletCfg.emoji} ${bulletCfg.title} · ${bulletCfg.rarity}`;
+      bulletCollectionWrap.innerHTML = '';
+      Object.values(BULLET_TYPES).forEach((bullet) => {
+        const owned = !!collection[bullet.id];
+        const selected = activeBullet === bullet.id;
+        const row = document.createElement('div');
+        row.className = `bullet-card${selected ? ' selected' : ''}${owned ? '' : ' locked'}`;
+        const main = document.createElement('div');
+        main.className = 'bullet-card-main';
+        main.innerHTML = `<div class="bullet-card-title">${bullet.emoji} ${bullet.title}</div><div class="bullet-card-meta">${bullet.rarity}</div>`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = owned ? (selected ? 'Выбрана ✓' : 'Выбрать') : 'Закрыто';
+        btn.disabled = !owned || selected;
+        btn.onclick = () => {
+          setActiveBulletId(bullet.id);
+          this.registry.set('activeBullet', bullet.id);
+          render();
+        };
+        row.appendChild(main);
+        row.appendChild(btn);
+        bulletCollectionWrap.appendChild(row);
+      });
     };
 
     const closeModal = () => {
@@ -754,6 +888,7 @@ class MenuScene extends Phaser.Scene {
       } else if (res.ok) {
         const reward = res.reward;
         if (reward.type === 'coins') alert(`🎁 Кейс: +${reward.amount} монет`);
+        else if (reward.type === 'bullet') alert(`🎁 Новая пуля: ${reward.label}`);
         else alert(`🎁 Кейс: ${reward.label}`);
       }
       render();
@@ -836,6 +971,8 @@ class GameScene extends Phaser.Scene {
     this.lastShotAt = 0;
     this.bulletScaleBonus = (this.shopState.bigBullet ? 1.3 : 1) + this.shopState.bulletLabLevel * 0.06;
     this.critChance = Math.min(0.28, this.shopState.critTechLevel * 0.05);
+    this.activeBulletId = getActiveBulletId();
+    this.bulletCfg = getBulletConfig(this.activeBulletId);
     this.sessionHits = 0;
     this.doubleScoreActive = false;
     this.doubleScoreReady = false;
@@ -903,6 +1040,9 @@ class GameScene extends Phaser.Scene {
     this.coinsHudText = this.add.text(W-20, 128, `🪙 ${getCoins()}`, {
       fontSize:"22px", color:"#FFD700", stroke:"#000", strokeThickness:4
     }).setOrigin(1, 0);
+    this.bulletHudText = this.add.text(W-20, 158, `${this.bulletCfg.emoji} ${this.bulletCfg.title}`, {
+      fontSize:"20px", color:"#ffffff", stroke:"#000", strokeThickness:4, fontStyle:"bold"
+    }).setOrigin(1, 0).setDepth(6);
 
     this.hitIcons = [];
     for(let i = 0; i < 3; i++) {
@@ -1385,11 +1525,12 @@ class GameScene extends Phaser.Scene {
       spread.forEach((offset) => {
         const ang = baseAngle + offset;
         const b = this.bullets.create(gx, gy, "bullet");
-        b.setScale(0.16 * this.bulletScaleBonus).setTint(0xFFD700);
-        const vx = Math.cos(ang) * (speed + 300);
-        const vy = Math.sin(ang) * (speed + 300);
+        b.bulletType = this.activeBulletId;
+        b.setScale(0.16 * this.bulletScaleBonus * (this.bulletCfg.sizeMul || 1)).setTint(this.bulletCfg.tint || 0xFFD700);
+        const vx = Math.cos(ang) * (speed + 300) * (this.bulletCfg.speedMul || 1);
+        const vy = Math.sin(ang) * (speed + 300) * (this.bulletCfg.speedMul || 1);
         b.setVelocity(vx, vy);
-        this.spawnTrail(b, 0xFFD700, 8);
+        this.spawnTrail(b, this.bulletCfg.trail || 0xFFD700, this.activeBulletId === 'minion' ? 10 : 8);
       });
 
       this.tweens.killTweensOf(this.gun);
@@ -1409,10 +1550,12 @@ class GameScene extends Phaser.Scene {
     }
 
     const bullet = this.bullets.create(gx, gy, "bullet");
-    bullet.setScale((0.06 + t * 0.06) * this.bulletScaleBonus);
-    this.physics.moveTo(bullet, tx, ty, speed);
-    const trailColor = t < 0.5 ? 0x00e5ff : (t < 0.8 ? 0xffcc00 : 0xff4400);
-    this.spawnTrail(bullet, trailColor, Math.round((0.6 + t * 0.6) * 6));
+    bullet.bulletType = this.activeBulletId;
+    bullet.setTint(this.bulletCfg.tint || 0xffffff);
+    bullet.setScale((0.06 + t * 0.06) * this.bulletScaleBonus * (this.bulletCfg.sizeMul || 1));
+    this.physics.moveTo(bullet, tx, ty, speed * (this.bulletCfg.speedMul || 1));
+    const trailColor = this.bulletCfg.trail || (t < 0.5 ? 0x00e5ff : (t < 0.8 ? 0xffcc00 : 0xff4400));
+    this.spawnTrail(bullet, trailColor, Math.round((0.6 + t * 0.6) * 6 * (this.activeBulletId === 'minion' ? 1.2 : 1)));
 
     const kick = this.gunBaseScale * (0.94 - t * 0.08);
     this.tweens.killTweensOf(this.gun);
@@ -1663,7 +1806,8 @@ class GameScene extends Phaser.Scene {
       const waveMult = this.waveProfile?.scoreMult || 1;
       const isCrit = Math.random() < this.critChance;
       const critMult = isCrit ? 2 : 1;
-      const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult);
+      const bulletScoreMult = this.bulletCfg.scoreMul || 1;
+      const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult * bulletScoreMult);
       this.score += gained;
       this.scoreText.setText(`SCORE: ${this.score}`);
       const bossPopup = this.add.text(bx, by-40, `${isCrit ? 'CRIT!  ' : ''}👑 BOSS DOWN  +${gained}`, {
@@ -1721,13 +1865,23 @@ class GameScene extends Phaser.Scene {
         angle:Phaser.Math.Between(-180,180), alpha:0, duration:700+Math.random()*300, ease:"Quad.easeOut", onComplete:()=>f.destroy() });
     }
 
+    if (this.activeBulletId === 'ice') {
+      this.birds.children.entries.forEach((enemy) => {
+        if (enemy?.active && enemy.body) {
+          enemy.body.velocity.x *= 0.96;
+          enemy.body.velocity.y *= 0.96;
+        }
+      });
+    }
     const runMult = this.doubleScoreActive ? 2 : 1;
     const waveMult = this.waveProfile?.scoreMult || 1;
     const isCrit = Math.random() < this.critChance;
     const critMult = isCrit ? 2 : 1;
-    const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult);
+    const bulletScoreMult = this.bulletCfg.scoreMul || 1;
+    const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult * bulletScoreMult);
     const color = isCrit ? "#ff8a65" : (this.comboMult >= 3 ? "#00e5ff" : (pts>=300?"#FFD700":"#7CFF00"));
     const popupParts = [`+${gained}`];
+    if (bulletScoreMult > 1.05) popupParts.push(this.bulletCfg.title.toUpperCase());
     if (isCrit) popupParts.unshift('CRIT!');
     if (this.comboMult > 1) popupParts.push(`x${this.comboMult}`);
     if (runMult > 1) popupParts.push("x2");
