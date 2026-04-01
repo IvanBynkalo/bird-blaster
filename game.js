@@ -12,25 +12,6 @@ const SHOP_ITEMS = {
   critTech: { id: "critTech", title: "Crit Tech", maxLevel: 5, basePrice: 450, step: 260 },
   luckyCase: { id: "luckyCase", title: "Lucky Case", price: 350 }
 };
-const BULLET_COLLECTION_KEY = "bird_blaster_bullet_collection_v1";
-const ACTIVE_BULLET_KEY = "bird_blaster_active_bullet_v1";
-const BULLET_TYPES = {
-  classic: { id: "classic", title: "Classic", emoji: "🔵", rarity: "Стартовая", tint: 0xffffff, trail: 0x00e5ff, speedMul: 1, sizeMul: 1, scoreMul: 1 },
-  laser: { id: "laser", title: "Laser", emoji: "⚡", rarity: "Редкая", tint: 0x80deea, trail: 0x00e5ff, speedMul: 1.25, sizeMul: 0.95, scoreMul: 1 },
-  flower: { id: "flower", title: "Flower", emoji: "🌸", rarity: "Эпик", tint: 0xff9ecb, trail: 0xff77aa, speedMul: 1, sizeMul: 1.05, scoreMul: 1.1 },
-  minion: { id: "minion", title: "Minion", emoji: "🟡", rarity: "Эпик", tint: 0xffeb3b, trail: 0xffc107, speedMul: 1, sizeMul: 1.12, scoreMul: 1 },
-  plasma: { id: "plasma", title: "Plasma", emoji: "🔥", rarity: "Легенд.", tint: 0xff7043, trail: 0xff5722, speedMul: 1.08, sizeMul: 1.08, scoreMul: 1.15 },
-  rainbow: { id: "rainbow", title: "Rainbow", emoji: "🌈", rarity: "Редкая", tint: 0xb388ff, trail: 0xff00ff, speedMul: 1.03, sizeMul: 1.03, scoreMul: 1.2 },
-  ice: { id: "ice", title: "Ice", emoji: "❄️", rarity: "Редкая", tint: 0xb3e5fc, trail: 0x80deea, speedMul: 0.98, sizeMul: 1.04, scoreMul: 1.05 }
-};
-const BULLET_CASE_REWARDS = [
-  { id: 'laser', chance: 0.2 },
-  { id: 'flower', chance: 0.14 },
-  { id: 'minion', chance: 0.14 },
-  { id: 'rainbow', chance: 0.12 },
-  { id: 'plasma', chance: 0.08 },
-  { id: 'ice', chance: 0.16 }
-];
 const GAME_MODE_KEY = "bird_blaster_mode_v1";
 const MISSION_STATE_KEY = "bird_blaster_missions_v1";
 const GAME_MODES = {
@@ -166,84 +147,6 @@ function saveShopState(state) {
   return safe;
 }
 
-function loadBulletCollection() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(BULLET_COLLECTION_KEY) || '{}');
-    return {
-      classic: true,
-      laser: !!raw.laser,
-      flower: !!raw.flower,
-      minion: !!raw.minion,
-      plasma: !!raw.plasma,
-      rainbow: !!raw.rainbow,
-      ice: !!raw.ice
-    };
-  } catch (e) {
-    return { classic: true, laser: false, flower: false, minion: false, plasma: false, rainbow: false, ice: false };
-  }
-}
-
-function saveBulletCollection(state) {
-  const safe = {
-    classic: true,
-    laser: !!state?.laser,
-    flower: !!state?.flower,
-    minion: !!state?.minion,
-    plasma: !!state?.plasma,
-    rainbow: !!state?.rainbow,
-    ice: !!state?.ice
-  };
-  try {
-    localStorage.setItem(BULLET_COLLECTION_KEY, JSON.stringify(safe));
-  } catch (e) {}
-  return safe;
-}
-
-function getActiveBulletId() {
-  try {
-    const id = localStorage.getItem(ACTIVE_BULLET_KEY) || 'classic';
-    const collection = loadBulletCollection();
-    return collection[id] && BULLET_TYPES[id] ? id : 'classic';
-  } catch (e) {
-    return 'classic';
-  }
-}
-
-function setActiveBulletId(id) {
-  const collection = loadBulletCollection();
-  const safe = collection[id] && BULLET_TYPES[id] ? id : 'classic';
-  try {
-    localStorage.setItem(ACTIVE_BULLET_KEY, safe);
-  } catch (e) {}
-  return safe;
-}
-
-function unlockBullet(id) {
-  if (!BULLET_TYPES[id] || id === 'classic') return { ok: false, reason: 'invalid', collection: loadBulletCollection() };
-  const collection = loadBulletCollection();
-  if (collection[id]) return { ok: false, reason: 'owned', collection };
-  collection[id] = true;
-  saveBulletCollection(collection);
-  return { ok: true, id, collection };
-}
-
-function rollBulletReward() {
-  const collection = loadBulletCollection();
-  const locked = BULLET_CASE_REWARDS.filter(entry => !collection[entry.id]);
-  if (!locked.length) return null;
-  const total = locked.reduce((sum, entry) => sum + entry.chance, 0);
-  let roll = Math.random() * total;
-  for (const entry of locked) {
-    roll -= entry.chance;
-    if (roll <= 0) return entry.id;
-  }
-  return locked[locked.length - 1].id;
-}
-
-function getBulletConfig(id) {
-  return BULLET_TYPES[id] || BULLET_TYPES.classic;
-}
-
 function buyShopItem(itemId) {
   const item = SHOP_ITEMS[itemId];
   if (!item) return { ok: false, reason: 'missing' };
@@ -294,27 +197,22 @@ function openLuckyCase() {
   state.luckyCaseOpened = (state.luckyCaseOpened || 0) + 1;
   const roll = Math.random();
   let reward = null;
-  if (roll < 0.34) reward = { type: 'coins', amount: 220 + Math.floor(Math.random() * 181), label: 'Монеты' };
-  else if (roll < 0.54) reward = { type: 'coins', amount: 420 + Math.floor(Math.random() * 231), label: 'Монеты' };
-  else if (roll < 0.72) {
-    const bulletId = rollBulletReward();
-    if (bulletId) reward = { type: 'bullet', bulletId, label: `${getBulletConfig(bulletId).emoji} ${getBulletConfig(bulletId).title}` };
-    else reward = { type: 'coins', amount: 800, label: 'Монеты' };
-  }
+  if (roll < 0.45) reward = { type: 'coins', amount: 220 + Math.floor(Math.random() * 181), label: 'Монеты' };
+  else if (roll < 0.70) reward = { type: 'coins', amount: 420 + Math.floor(Math.random() * 231), label: 'Монеты' };
   else if (roll < 0.84) reward = { type: 'upgrade', upgradeId: 'fireRate', label: 'Rapid Fire +1' };
   else if (roll < 0.94) reward = { type: 'upgrade', upgradeId: 'bulletLab', label: 'Bullet Lab +1' };
   else reward = { type: 'upgrade', upgradeId: 'critTech', label: 'Crit Tech +1' };
 
   if (reward.type === 'coins') {
     addCoins(reward.amount);
-  } else if (reward.type === 'upgrade') {
+  } else {
     const meta = getUpgradeMeta(reward.upgradeId);
-    if (meta) state[meta.stateKey] = Math.min(meta.maxLevel, (state[meta.stateKey] || 0) + 1);
-  } else if (reward.type === 'bullet') {
-    unlockBullet(reward.bulletId);
+    if (meta) {
+      state[meta.stateKey] = Math.min(meta.maxLevel, (state[meta.stateKey] || 0) + 1);
+    }
   }
   saveShopState(state);
-  return { ok: true, state, coins: getCoins(), reward, bulletCollection: loadBulletCollection() };
+  return { ok: true, state, coins: getCoins(), reward };
 }
 
 function getSavedGameMode() {
@@ -598,8 +496,6 @@ class BootScene extends Phaser.Scene {
     this.registry.set("shopState", loadShopState());
     this.registry.set("gameMode", getSavedGameMode());
     this.registry.set("missions", getMissionRows());
-    this.registry.set("bulletCollection", loadBulletCollection());
-    this.registry.set("activeBullet", getActiveBulletId());
     this.scene.start("MenuScene");
   }
 }
@@ -657,7 +553,7 @@ class MenuScene extends Phaser.Scene {
     this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.86, H*0.702, "v14", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v15", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
@@ -790,19 +686,13 @@ class MenuScene extends Phaser.Scene {
     const buyCritBtn = document.getElementById("buy-crit-tech-btn");
     const openCaseBtn = document.getElementById("open-lucky-case-btn");
     const coinsLabel = document.getElementById("shop-coins-label");
-    const activeBulletLabel = document.getElementById("shop-active-bullet-label");
-    const bulletCollectionWrap = document.getElementById("bullet-collection-list");
-    if (!modal || !closeBtn || !buyBlasterBtn || !buyBulletBtn || !buyRapidBtn || !buyBulletLabBtn || !buyCritBtn || !openCaseBtn || !coinsLabel || !activeBulletLabel || !bulletCollectionWrap) return;
+    if (!modal || !closeBtn || !buyBlasterBtn || !buyBulletBtn || !buyRapidBtn || !buyBulletLabBtn || !buyCritBtn || !openCaseBtn || !coinsLabel) return;
 
     const render = () => {
       const state = loadShopState();
       const coins = getCoins();
-      const collection = loadBulletCollection();
-      const activeBullet = getActiveBulletId();
       this.registry.set("shopState", state);
       this.registry.set("coins", coins);
-      this.registry.set("bulletCollection", collection);
-      this.registry.set("activeBullet", activeBullet);
       this.refreshCoinsText();
       coinsLabel.textContent = `Монеты: ${coins}`;
 
@@ -837,30 +727,6 @@ class MenuScene extends Phaser.Scene {
       if (lvlBullet) lvlBullet.textContent = `Уровень: ${state.bulletLabLevel}/10`;
       if (lvlCrit) lvlCrit.textContent = `Уровень: ${state.critTechLevel}/5`;
       if (caseStat) caseStat.textContent = `Открыто кейсов: ${state.luckyCaseOpened || 0}`;
-      const bulletCfg = getBulletConfig(activeBullet);
-      activeBulletLabel.textContent = `Активная пуля: ${bulletCfg.emoji} ${bulletCfg.title} · ${bulletCfg.rarity}`;
-      bulletCollectionWrap.innerHTML = '';
-      Object.values(BULLET_TYPES).forEach((bullet) => {
-        const owned = !!collection[bullet.id];
-        const selected = activeBullet === bullet.id;
-        const row = document.createElement('div');
-        row.className = `bullet-card${selected ? ' selected' : ''}${owned ? '' : ' locked'}`;
-        const main = document.createElement('div');
-        main.className = 'bullet-card-main';
-        main.innerHTML = `<div class="bullet-card-title">${bullet.emoji} ${bullet.title}</div><div class="bullet-card-meta">${bullet.rarity}</div>`;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.textContent = owned ? (selected ? 'Выбрана ✓' : 'Выбрать') : 'Закрыто';
-        btn.disabled = !owned || selected;
-        btn.onclick = () => {
-          setActiveBulletId(bullet.id);
-          this.registry.set('activeBullet', bullet.id);
-          render();
-        };
-        row.appendChild(main);
-        row.appendChild(btn);
-        bulletCollectionWrap.appendChild(row);
-      });
     };
 
     const closeModal = () => {
@@ -888,7 +754,6 @@ class MenuScene extends Phaser.Scene {
       } else if (res.ok) {
         const reward = res.reward;
         if (reward.type === 'coins') alert(`🎁 Кейс: +${reward.amount} монет`);
-        else if (reward.type === 'bullet') alert(`🎁 Новая пуля: ${reward.label}`);
         else alert(`🎁 Кейс: ${reward.label}`);
       }
       render();
@@ -971,8 +836,6 @@ class GameScene extends Phaser.Scene {
     this.lastShotAt = 0;
     this.bulletScaleBonus = (this.shopState.bigBullet ? 1.3 : 1) + this.shopState.bulletLabLevel * 0.06;
     this.critChance = Math.min(0.28, this.shopState.critTechLevel * 0.05);
-    this.activeBulletId = getActiveBulletId();
-    this.bulletCfg = getBulletConfig(this.activeBulletId);
     this.sessionHits = 0;
     this.doubleScoreActive = false;
     this.doubleScoreReady = false;
@@ -1040,9 +903,6 @@ class GameScene extends Phaser.Scene {
     this.coinsHudText = this.add.text(W-20, 128, `🪙 ${getCoins()}`, {
       fontSize:"22px", color:"#FFD700", stroke:"#000", strokeThickness:4
     }).setOrigin(1, 0);
-    this.bulletHudText = this.add.text(W-20, 158, `${this.bulletCfg.emoji} ${this.bulletCfg.title}`, {
-      fontSize:"20px", color:"#ffffff", stroke:"#000", strokeThickness:4, fontStyle:"bold"
-    }).setOrigin(1, 0).setDepth(6);
 
     this.hitIcons = [];
     for(let i = 0; i < 3; i++) {
@@ -1525,12 +1385,12 @@ class GameScene extends Phaser.Scene {
       spread.forEach((offset) => {
         const ang = baseAngle + offset;
         const b = this.bullets.create(gx, gy, "bullet");
-        b.bulletType = this.activeBulletId;
-        b.setScale(0.16 * this.bulletScaleBonus * (this.bulletCfg.sizeMul || 1)).setTint(this.bulletCfg.tint || 0xFFD700);
-        const vx = Math.cos(ang) * (speed + 300) * (this.bulletCfg.speedMul || 1);
-        const vy = Math.sin(ang) * (speed + 300) * (this.bulletCfg.speedMul || 1);
+        b.setScale(0.16 * this.bulletScaleBonus).setTint(0xFFD700);
+        const vx = Math.cos(ang) * (speed + 300);
+        const vy = Math.sin(ang) * (speed + 300);
         b.setVelocity(vx, vy);
-        this.spawnTrail(b, this.bulletCfg.trail || 0xFFD700, this.activeBulletId === 'minion' ? 10 : 8);
+        b.fxProfile = this.getBulletFxProfile(1, true, false);
+        this.spawnTrail(b, b.fxProfile.trail, b.fxProfile.radius, b.fxProfile);
       });
 
       this.tweens.killTweensOf(this.gun);
@@ -1544,18 +1404,18 @@ class GameScene extends Phaser.Scene {
         onComplete:() => this.gun.setScale(this.gunBaseScale)
       });
 
-      const ring = this.add.circle(gx, gy, 8, 0xFFD700, 0.9);
+      const ring = this.add.circle(gx, gy, 8, 0xFFD700, 0.9).setDepth(18);
       this.tweens.add({ targets:ring, scaleX:6, scaleY:6, alpha:0, duration:300, onComplete:()=>ring.destroy() });
+      this.spawnImpactBurst(gx, gy, [0xFFD700, 0xff7043, 0xfff59d], 14, 42, 6, true);
       return;
     }
 
     const bullet = this.bullets.create(gx, gy, "bullet");
-    bullet.bulletType = this.activeBulletId;
-    bullet.setTint(this.bulletCfg.tint || 0xffffff);
-    bullet.setScale((0.06 + t * 0.06) * this.bulletScaleBonus * (this.bulletCfg.sizeMul || 1));
-    this.physics.moveTo(bullet, tx, ty, speed * (this.bulletCfg.speedMul || 1));
-    const trailColor = this.bulletCfg.trail || (t < 0.5 ? 0x00e5ff : (t < 0.8 ? 0xffcc00 : 0xff4400));
-    this.spawnTrail(bullet, trailColor, Math.round((0.6 + t * 0.6) * 6 * (this.activeBulletId === 'minion' ? 1.2 : 1)));
+    bullet.setScale((0.06 + t * 0.06) * this.bulletScaleBonus);
+    this.physics.moveTo(bullet, tx, ty, speed);
+    bullet.chargeT = t;
+    bullet.fxProfile = this.getBulletFxProfile(t, false, false);
+    this.spawnTrail(bullet, bullet.fxProfile.trail, bullet.fxProfile.radius, bullet.fxProfile);
 
     const kick = this.gunBaseScale * (0.94 - t * 0.08);
     this.tweens.killTweensOf(this.gun);
@@ -1568,14 +1428,67 @@ class GameScene extends Phaser.Scene {
       yoyo:true,
       onComplete:() => this.gun.setScale(this.gunBaseScale)
     });
+    this.spawnImpactBurst(gx, gy, [bullet.fxProfile.trail, bullet.fxProfile.secondary || 0xffffff], 6, 24, 4, true);
   }
 
-  spawnTrail(bullet, color, radius) {
-    this.time.addEvent({ delay:16, repeat:6, callback:() => {
+  spawnImpactBurst(x, y, palette = [0xffffff], count = 10, spread = 120, size = 5, rise = false) {
+    for (let i = 0; i < count; i++) {
+      const color = palette[i % palette.length];
+      const particle = this.add.circle(x, y, Phaser.Math.FloatBetween(size * 0.45, size), color, 0.95).setDepth(18);
+      const dx = Phaser.Math.Between(-spread, spread);
+      const dy = rise ? Phaser.Math.Between(-spread, -20) : Phaser.Math.Between(-spread, spread);
+      this.tweens.add({
+        targets: particle,
+        x: x + dx,
+        y: y + dy,
+        alpha: 0,
+        scaleX: 0.2,
+        scaleY: 0.2,
+        duration: Phaser.Math.Between(260, 520),
+        ease: "Quad.easeOut",
+        onComplete: () => particle.destroy()
+      });
+    }
+  }
+
+  spawnTrail(bullet, color, radius, options = {}) {
+    const repeat = options.repeat ?? 6;
+    const delay = options.delay ?? 16;
+    const alpha = options.alpha ?? 0.6;
+    const secondary = options.secondary || null;
+    const pulse = options.pulse || false;
+    const shadow = options.shadow || false;
+    this.time.addEvent({ delay, repeat, callback:() => {
       if(!bullet.active) return;
-      const trail = this.add.circle(bullet.x, bullet.y, radius, color, 0.6);
-      this.tweens.add({ targets:trail, alpha:0, scaleX:0, scaleY:0, duration:160, onComplete:()=>trail.destroy() });
+      const trail = this.add.circle(bullet.x, bullet.y, radius, color, alpha).setDepth(8);
+      if (shadow) trail.setStrokeStyle(2, secondary || 0xffffff, 0.55);
+      if (pulse) {
+        trail.setScale(0.8);
+        this.tweens.add({ targets:trail, alpha:0, scaleX:1.9, scaleY:1.9, duration:220, onComplete:()=>trail.destroy() });
+      } else {
+        this.tweens.add({ targets:trail, alpha:0, scaleX:0, scaleY:0, duration:160, onComplete:()=>trail.destroy() });
+      }
+      if (secondary) {
+        const sparkle = this.add.circle(bullet.x + Phaser.Math.Between(-4,4), bullet.y + Phaser.Math.Between(-4,4), Math.max(2, radius * 0.35), secondary, Math.min(0.95, alpha + 0.1)).setDepth(9);
+        this.tweens.add({ targets:sparkle, alpha:0, y:sparkle.y - Phaser.Math.Between(8,18), duration:180, onComplete:()=>sparkle.destroy() });
+      }
     }});
+  }
+
+  getBulletFxProfile(chargeT = 0, isSuper = false, isCrit = false) {
+    if (isSuper) {
+      return { trail: 0xFFD700, secondary: 0xff7043, radius: 9, repeat: 8, alpha: 0.75, pulse: true, hitPalette: [0xFFD700, 0xff7043, 0xfff59d], shake: 0.01 };
+    }
+    if (isCrit) {
+      return { trail: 0xff8a65, secondary: 0xffcc80, radius: 7, repeat: 7, alpha: 0.72, pulse: true, hitPalette: [0xff8a65, 0xffcc80, 0xff7043], shake: 0.008 };
+    }
+    if (chargeT >= 0.8) {
+      return { trail: 0xff4400, secondary: 0xffcc80, radius: 7, repeat: 7, alpha: 0.7, pulse: true, hitPalette: [0xff4400, 0xffcc80, 0xff7043], shake: 0.0065 };
+    }
+    if (chargeT >= 0.5) {
+      return { trail: 0xffcc00, secondary: 0xfff59d, radius: 6, repeat: 6, alpha: 0.62, pulse: false, hitPalette: [0xffcc00, 0xfff59d, 0xffe082], shake: 0.005 };
+    }
+    return { trail: 0x00e5ff, secondary: 0x80deea, radius: 5, repeat: 5, alpha: 0.55, pulse: false, hitPalette: [0x00e5ff, 0x80deea, 0xb2ebf2], shake: 0.004 };
   }
 
   updateBoosterButtons() {
@@ -1757,7 +1670,9 @@ class GameScene extends Phaser.Scene {
       this.time.delayedCall(70, () => {
         if (bird.active) bird.clearTint();
       });
-      this.cameras.main.shake(70, 0.006);
+      const bossFx = bullet.fxProfile || this.getBulletFxProfile(0.9, false, false);
+      this.cameras.main.shake(70, Math.max(0.006, bossFx.shake || 0.006));
+      this.spawnImpactBurst(bx, by, bossFx.hitPalette || [0xff8a65, 0xffcc80], 10, 56, 6);
       const chip = this.add.text(bx, by - 42, `-${1}`, {
         fontSize:"36px", color:"#ff8a65", stroke:"#000", strokeThickness:5, fontStyle:"bold"
       }).setOrigin(0.5).setDepth(20);
@@ -1793,7 +1708,7 @@ class GameScene extends Phaser.Scene {
         for(let i=0;i<3;i++) { this.hitIcons[i].setColor("#00e5ff"); this.hitIcons[i].setText("★"); }
       }
 
-      const bossHit = this.add.image(bx, by, "hit").setScale(1).setTint(0xffb300);
+      const bossHit = this.add.image(bx, by, "hit").setScale(1).setTint(0xffb300).setDepth(18);
       this.tweens.add({ targets:bossHit, alpha:0, scale:2.1, duration:500, onComplete:()=>bossHit.destroy() });
       for(let i=0;i<12;i++){
         const f = this.add.image(bx, by, "feather")
@@ -1806,8 +1721,7 @@ class GameScene extends Phaser.Scene {
       const waveMult = this.waveProfile?.scoreMult || 1;
       const isCrit = Math.random() < this.critChance;
       const critMult = isCrit ? 2 : 1;
-      const bulletScoreMult = this.bulletCfg.scoreMul || 1;
-      const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult * bulletScoreMult);
+      const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult);
       this.score += gained;
       this.scoreText.setText(`SCORE: ${this.score}`);
       const bossPopup = this.add.text(bx, by-40, `${isCrit ? 'CRIT!  ' : ''}👑 BOSS DOWN  +${gained}`, {
@@ -1827,7 +1741,9 @@ class GameScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(20);
       this.tweens.add({ targets:skull, y:skull.y-90, alpha:0, duration:900, ease:"Quad.easeOut", onComplete:()=>skull.destroy() });
 
-      const hit = this.add.image(bx, by, "hit").setScale(0.6).setTint(0xff0000);
+      const dangerFx = bullet.fxProfile || this.getBulletFxProfile(0.3, false, false);
+      this.spawnImpactBurst(bx, by, [0xff0000, dangerFx.trail, dangerFx.secondary || 0xffffff], 12, 90, 7);
+      const hit = this.add.image(bx, by, "hit").setScale(0.6).setTint(0xff0000).setDepth(18);
       this.tweens.add({ targets:hit, alpha:0, scale:1.8, duration:400, onComplete:()=>hit.destroy() });
 
       this.resetCombo();
@@ -1855,7 +1771,11 @@ class GameScene extends Phaser.Scene {
       for(let i=0;i<3;i++) { this.hitIcons[i].setColor("#00e5ff"); this.hitIcons[i].setText("★"); }
     }
 
-    const hit = this.add.image(bx, by, "hit").setScale(0.5);
+    const shotFx = bullet.fxProfile || this.getBulletFxProfile(0.3, false, false);
+    if (isCrit) shotFx.hitPalette = [0xff8a65, 0xffcc80, 0xff7043];
+    this.spawnImpactBurst(bx, by, shotFx.hitPalette || [0xffffff], isCrit ? 12 : 8, isCrit ? 78 : 56, isCrit ? 6 : 5);
+    const hit = this.add.image(bx, by, "hit").setScale(isCrit ? 0.68 : 0.5).setDepth(18);
+    if (isCrit) hit.setTint(0xff8a65);
     this.tweens.add({ targets:hit, alpha:0, scale:1.3, duration:350, onComplete:()=>hit.destroy() });
 
     for(let i=0;i<5;i++){
@@ -1865,23 +1785,13 @@ class GameScene extends Phaser.Scene {
         angle:Phaser.Math.Between(-180,180), alpha:0, duration:700+Math.random()*300, ease:"Quad.easeOut", onComplete:()=>f.destroy() });
     }
 
-    if (this.activeBulletId === 'ice') {
-      this.birds.children.entries.forEach((enemy) => {
-        if (enemy?.active && enemy.body) {
-          enemy.body.velocity.x *= 0.96;
-          enemy.body.velocity.y *= 0.96;
-        }
-      });
-    }
     const runMult = this.doubleScoreActive ? 2 : 1;
     const waveMult = this.waveProfile?.scoreMult || 1;
     const isCrit = Math.random() < this.critChance;
     const critMult = isCrit ? 2 : 1;
-    const bulletScoreMult = this.bulletCfg.scoreMul || 1;
-    const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult * bulletScoreMult);
+    const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult);
     const color = isCrit ? "#ff8a65" : (this.comboMult >= 3 ? "#00e5ff" : (pts>=300?"#FFD700":"#7CFF00"));
     const popupParts = [`+${gained}`];
-    if (bulletScoreMult > 1.05) popupParts.push(this.bulletCfg.title.toUpperCase());
     if (isCrit) popupParts.unshift('CRIT!');
     if (this.comboMult > 1) popupParts.push(`x${this.comboMult}`);
     if (runMult > 1) popupParts.push("x2");
@@ -1893,7 +1803,7 @@ class GameScene extends Phaser.Scene {
 
     this.score += gained;
     this.scoreText.setText(`SCORE: ${this.score}`);
-    this.cameras.main.shake(90, 0.004 + Math.min(this.comboMult, 5) * 0.0015);
+    this.cameras.main.shake(90, (shotFx.shake || 0.004) + Math.min(this.comboMult, 5) * 0.0015);
   }
 
   updateGameTimer() {

@@ -127,49 +127,6 @@
       cursor: default;
       opacity: 0.9;
     }
-    .bullet-collection {
-      margin-top: 8px;
-      display: grid;
-      gap: 10px;
-    }
-    .bullet-card {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      background: rgba(255,255,255,0.08);
-      border: 2px solid rgba(0,229,255,0.35);
-      border-radius: 14px;
-      padding: 12px;
-    }
-    .bullet-card.locked {
-      opacity: 0.62;
-      border-color: rgba(255,255,255,0.15);
-    }
-    .bullet-card.selected {
-      border-color: #7CFF00;
-      box-shadow: 0 0 0 2px rgba(124,255,0,0.18) inset;
-    }
-    .bullet-card-main {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .bullet-card-title {
-      font-size: 20px;
-      font-weight: bold;
-    }
-    .bullet-card-meta {
-      font-size: 14px;
-      opacity: 0.85;
-    }
-    .bullet-card button {
-      width: auto;
-      min-width: 110px;
-      padding: 10px 12px;
-      font-size: 16px;
-      border-radius: 10px;
-    }
     #start-game-btn {
       background: #ff6f00;
       color: white;
@@ -230,14 +187,9 @@
         </div>
         <div class="shop-item">
           <div class="shop-title">🎁 Lucky Case</div>
-          <div class="shop-desc">Случайная награда: монеты, апгрейд или новая пуля для коллекции.</div>
+          <div class="shop-desc">Случайная награда: монеты или бесплатный апгрейд.</div>
           <div class="shop-desc" id="shop-case-opened">Открыто кейсов: 0</div>
           <button id="open-lucky-case-btn" type="button">Открыть — 350</button>
-        </div>
-        <div class="shop-item">
-          <div class="shop-title">🎯 Коллекция пуль</div>
-          <div class="shop-desc" id="shop-active-bullet-label">Активная пуля: 🔵 Classic · Стартовая</div>
-          <div class="bullet-collection" id="bullet-collection-list"></div>
         </div>
       </div>
       <div class="modal-actions single-row">
