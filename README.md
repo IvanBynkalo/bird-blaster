@@ -151,3 +151,9 @@ service cloud.firestore {
 - skins must be bought for 2000 coins before use
 - active bullet skin now changes projectile texture in battle
 - clarified separate leaderboards by game mode
+
+
+## v15.8.4
+- вернул блок «Скины пуль» в магазин
+- починил загрузку глобального рейтинга по режимам без лишнего orderBy
+- оставил фикс рестарта после окончания игры
