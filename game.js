@@ -149,7 +149,7 @@ function consumeFreshGameStart() {
 
 function hideDomModals() {
   try {
-    const ids = ["shop-modal", "name-modal"];
+    const ids = ["shop-modal", "name-modal", "leaderboard-modal"];
     ids.forEach((id) => {
       const modal = document.getElementById(id);
       if (!modal) return;
@@ -721,7 +721,7 @@ class MenuScene extends Phaser.Scene {
     this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.86, H*0.702, "v16.0", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v16.1", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
@@ -768,14 +768,14 @@ class MenuScene extends Phaser.Scene {
     const missions = getMissionRows();
     this.registry.set("missions", missions);
     missions.forEach((mission, index) => {
-      const y = this.boardY + 66 + index * 34;
+      const y = this.boardY + 104 + index * 30;
       const done = mission.claimed;
-      const card = this.add.rectangle(this.boardX, y, 524, 28, done ? 0x143c14 : 0x102238, 0.76)
+      const card = this.add.rectangle(this.boardX, y, 524, 26, done ? 0x143c14 : 0x102238, 0.76)
         .setStrokeStyle(2, done ? 0x7CFF00 : 0x3ab4ff, 0.9).setDepth(3.5);
       const label = `${done ? "✅" : "🎯"} ${mission.title}`;
       const progress = done ? `+${mission.reward} взято` : `${mission.value}/${mission.goal}  •  +${mission.reward}`;
       const left = this.add.text(this.boardX - 246, y, label, {
-        fontSize:"15px", color: done ? "#b9ffb9" : "#fff", stroke:"#000", strokeThickness:4
+        fontSize:"14px", color: done ? "#b9ffb9" : "#fff", stroke:"#000", strokeThickness:4
       }).setOrigin(0, 0.5).setDepth(4);
       const right = this.add.text(this.boardX + 246, y, progress, {
         fontSize:"14px", color: done ? "#7CFF00" : "#FFD700", stroke:"#000", strokeThickness:4, fontStyle:"bold"
@@ -787,25 +787,30 @@ class MenuScene extends Phaser.Scene {
   drawLeaderboardShell() {
     const { width: W, height: H } = this.scale;
     const boardX = W / 2;
-    const boardY = H * 0.78;
+    const boardY = H * 0.775;
     this.boardX = boardX;
     this.boardY = boardY;
 
-    this.boardPanel = this.add.rectangle(boardX, boardY, 580, 236, 0x05111f, 0.58).setStrokeStyle(4, 0xFFD700).setDepth(3);
-    this.boardHeader = this.add.rectangle(boardX, boardY - 92, 540, 40, 0x4a2d14, 0.9).setStrokeStyle(2, 0xFFD700).setDepth(3.2);
-    this.boardTitle = this.add.text(boardX, boardY - 92, "🏆 ЛУЧШИЕ ИГРОКИ", {
+    this.boardPanel = this.add.rectangle(boardX, boardY, 580, 214, 0x05111f, 0.58).setStrokeStyle(4, 0xFFD700).setDepth(3);
+    this.boardHeader = this.add.rectangle(boardX, boardY - 84, 540, 40, 0x4a2d14, 0.9).setStrokeStyle(2, 0xFFD700).setDepth(3.2);
+    this.boardTitle = this.add.text(boardX, boardY - 84, "🏆 ЛУЧШИЕ ИГРОКИ", {
       fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
-    this.boardModeText = this.add.text(boardX, boardY - 66, LeaderboardService.getStatusLabel(this.registry.get("gameMode") || getSavedGameMode()), {
+    this.boardModeText = this.add.text(boardX, boardY - 58, LeaderboardService.getStatusLabel(this.registry.get("gameMode") || getSavedGameMode()), {
       fontSize:"16px", color:"#7de3ff", stroke:"#000", strokeThickness:4, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
-    this.boardLoadingText = this.add.text(boardX, boardY - 12, "Загрузка рейтинга...", {
+    this.boardLoadingText = this.add.text(boardX, boardY - 18, "Загрузка рейтинга...", {
       fontSize:"22px", align:"center", color:"#fff", stroke:"#000", strokeThickness:4
     }).setOrigin(0.5).setDepth(4);
+    this.showAllBtn = this.add.rectangle(boardX, boardY + 34, 240, 36, 0x1565c0, 0.96).setStrokeStyle(3, 0x7de3ff).setInteractive({ useHandCursor: true }).setDepth(3.5);
+    this.showAllBtnLabel = this.add.text(boardX, boardY + 34, "🏆 Показать всё", {
+      fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold"
+    }).setOrigin(0.5).setDepth(4);
+    this.showAllBtn.on("pointerdown", () => this.openLeaderboardModal());
 
-    this.missionDivider = this.add.line(boardX, boardY + 12, -248, 0, 248, 0, 0x3ab4ff, 0.65).setLineWidth(2, 2).setDepth(3.2);
-    this.missionTitle = this.add.text(boardX, boardY + 32, "🎯 МИССИИ", {
-      fontSize:"26px", color:"#00e5ff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    this.missionDivider = this.add.line(boardX, boardY + 58, -248, 0, 248, 0, 0x3ab4ff, 0.65).setLineWidth(2, 2).setDepth(3.2);
+    this.missionTitle = this.add.text(boardX, boardY + 76, "🎯 МИССИИ", {
+      fontSize:"24px", color:"#00e5ff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
     this.missionTexts = [];
     this.refreshMissionTexts();
@@ -880,6 +885,49 @@ class MenuScene extends Phaser.Scene {
 
       this.boardRowTexts.push(card, medal, medalText, nameText, scorePill, scoreText);
     });
+  }
+
+  async openLeaderboardModal() {
+    const modal = document.getElementById("leaderboard-modal");
+    const closeBtn = document.getElementById("close-leaderboard-btn");
+    const closeBtnTop = document.getElementById("close-leaderboard-x");
+    const listEl = document.getElementById("leaderboard-list");
+    const subtitle = document.getElementById("leaderboard-modal-subtitle");
+    if (!modal || !closeBtn || !listEl || !subtitle) return;
+
+    const currentModeId = this.registry.get("gameMode") || getSavedGameMode();
+    subtitle.textContent = LeaderboardService.getStatusLabel(currentModeId);
+    listEl.innerHTML = '<div class="shop-desc">Загрузка...</div>';
+    const rows = await LeaderboardService.loadTop(20, currentModeId);
+    if (!this.scene.isActive()) return;
+    if (!rows.length) {
+      listEl.innerHTML = '<div class="shop-desc">Пока нет результатов. Стань первым!</div>';
+    } else {
+      listEl.innerHTML = rows.map((row, idx) => `
+        <div class="leaderboard-row">
+          <div class="leaderboard-rank">${idx + 1}</div>
+          <div class="leaderboard-main">
+            <div class="leaderboard-name">${this.formatLeaderboardName(row.name)}</div>
+            <div class="leaderboard-mode">${GAME_MODES[currentModeId]?.title || "КЛАССИКА"}</div>
+          </div>
+          <div class="leaderboard-score">${row.score}</div>
+        </div>`).join('');
+    }
+
+    const closeModal = () => {
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+      closeBtn.onclick = null;
+      if (closeBtnTop) closeBtnTop.onclick = null;
+      modal.onclick = null;
+      document.onkeydown = null;
+    };
+    closeBtn.onclick = closeModal;
+    if (closeBtnTop) closeBtnTop.onclick = closeModal;
+    modal.onclick = (event) => { if (event.target === modal) closeModal(); };
+    document.onkeydown = (event) => { if (event.key === "Escape") closeModal(); };
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
   }
 
   openShopModal() {
@@ -1157,7 +1205,9 @@ class GameScene extends Phaser.Scene {
     this.modeHudText = this.add.text(W/2, 96, this.mode.title, { fontSize:"20px", color:"#00e5ff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5,0);
     this.waveText = this.add.text(W/2, 128, "", { fontSize:"30px", color:"#7CFF00", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0);
     this.waveSubText = this.add.text(W/2, 164, "", { fontSize:"24px", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5, 0);
-    this.bossHpText = this.add.text(W/2, 196, "", { fontSize:"26px", color:"#ff8a65", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0).setVisible(false);
+    this.bossHpText = this.add.text(W/2, 196, "", { fontSize:"24px", color:"#ff8a65", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5, 0).setVisible(false);
+    this.bossHpBarBg = this.add.rectangle(W/2, 230, 300, 16, 0x000000, 0.58).setStrokeStyle(2, 0xff8a65, 0.8).setDepth(5).setVisible(false);
+    this.bossHpBarFill = this.add.rectangle(W/2 - 150, 230, 0, 12, 0xff7043, 0.96).setOrigin(0, 0.5).setDepth(6).setVisible(false);
     this.themeNameText = this.add.text(W/2, 0, "", { fontSize:"1px", color:"#fff" }).setOrigin(0.5, 0).setVisible(false);
     this.waveBonusBg = this.add.rectangle(W/2, 222, 360, 50, 0x000000, 0.52).setStrokeStyle(3, 0xFFD700, 0.9).setDepth(5);
     this.waveBonusText = this.add.text(W/2, 199, "", { fontSize:"24px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5, 0).setDepth(6);
@@ -1180,6 +1230,12 @@ class GameScene extends Phaser.Scene {
       }).setDepth(10);
       this.hitIcons.push(ic);
     }
+    this.slowBarBg = this.add.rectangle(100, H - 84, 128, 10, 0x000000, 0.55).setStrokeStyle(2, 0x90caf9, 0.7).setDepth(15);
+    this.slowBarFill = this.add.rectangle(36, H - 84, 0, 6, 0x29b6f6, 0.95).setOrigin(0,0.5).setDepth(16);
+    this.x2BarBg = this.add.rectangle(W - 100, H - 84, 128, 10, 0x000000, 0.55).setStrokeStyle(2, 0xffcc80, 0.7).setDepth(15);
+    this.x2BarFill = this.add.rectangle(W - 164, H - 84, 0, 6, 0xffb74d, 0.95).setOrigin(0,0.5).setDepth(16);
+    this.superBarBg = this.add.rectangle(W/2, H - 96, 220, 10, 0x000000, 0.55).setStrokeStyle(2, 0xFFD700, 0.7).setDepth(15);
+    this.superBarFill = this.add.rectangle(W/2 - 110, H - 96, 0, 6, 0xFFD700, 0.95).setOrigin(0,0.5).setDepth(16);
     this.superLabel = this.add.text(W/2, H - 78, "", {
       fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(12);
@@ -1647,9 +1703,19 @@ class GameScene extends Phaser.Scene {
 
   updateBossHpUI() {
     if (this.bossBird && this.bossBird.active) {
-      this.bossHpText.setVisible(true).setText(`👑 BOSS HP: ${this.bossBird.hp}/${this.bossBird.maxHp}`);
+      const hp = Math.max(0, this.bossBird.hp || 0);
+      const maxHp = Math.max(1, this.bossBird.maxHp || 1);
+      const progress = Phaser.Math.Clamp(hp / maxHp, 0, 1);
+      this.bossHpText.setVisible(true).setText(`👑 BOSS HP: ${hp}/${maxHp}`);
+      if (this.bossHpBarBg) this.bossHpBarBg.setVisible(true);
+      if (this.bossHpBarFill) {
+        this.bossHpBarFill.setVisible(true);
+        this.bossHpBarFill.width = 300 * progress;
+      }
     } else {
       this.bossHpText.setVisible(false).setText("");
+      if (this.bossHpBarBg) this.bossHpBarBg.setVisible(false);
+      if (this.bossHpBarFill) this.bossHpBarFill.setVisible(false).width = 0;
     }
   }
 
