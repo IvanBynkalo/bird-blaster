@@ -1166,6 +1166,8 @@ class GameScene extends Phaser.Scene {
     this.bossActive = false;
     this.bossSpawnedThisWave = false;
     this.bossBird = null;
+    this.superVolleySeq = 0;
+    this.superVolleyState = {};
     this.timePressureLevel = 0;
   }
 
@@ -1336,8 +1338,8 @@ class GameScene extends Phaser.Scene {
 
       if(b.x < -80 || b.x > W+80 || b.y < -80 || b.y > H+80) {
         b.counted = true;
+        this.resolveBulletOutcome(b, false);
         b.destroy();
-        this.registerMiss();
         continue;
       }
 
@@ -1616,12 +1618,18 @@ class GameScene extends Phaser.Scene {
       this.waveBonusBg.setFillStyle(baseColor, 0.64);
       this.waveBonusBg.setStrokeStyle(3, accentHex, 0.95);
     }
+    const showWaveProgress = !this.bossActive;
     if (this.waveProgressBg) {
+      this.waveProgressBg.setVisible(showWaveProgress);
       this.waveProgressBg.setStrokeStyle(2, accentHex, 0.75);
     }
     if (this.waveProgressFill) {
+      this.waveProgressFill.setVisible(showWaveProgress);
       this.waveProgressFill.setFillStyle(accentHex, 0.95);
       this.waveProgressFill.width = 280 * progress;
+    }
+    if (this.waveProgressText) {
+      this.waveProgressText.setVisible(showWaveProgress);
     }
   }
 
@@ -1813,11 +1821,14 @@ class GameScene extends Phaser.Scene {
       this.superLabel.setText("");
       for(let i=0;i<3;i++) { this.hitIcons[i].setColor("#555"); this.hitIcons[i].setText("◎"); }
 
+      const volleyId = ++this.superVolleySeq;
+      this.superVolleyState[volleyId] = { remaining: 3, hit: false };
       const baseAngle = Phaser.Math.Angle.Between(gx, gy, tx, ty);
       const spread    = [-0.18, 0, 0.18];
       spread.forEach((offset) => {
         const ang = baseAngle + offset;
         const b = this.bullets.create(gx, gy, getBulletTextureKey());
+        b.superVolleyId = volleyId;
         b.prevX = gx;
         b.prevY = gy;
         b.setScale(0.16 * this.bulletScaleBonus).setTint(0xFFD700);
@@ -2034,6 +2045,27 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  resolveBulletOutcome(bullet, didHit = false) {
+    if (!bullet || bullet._outcomeResolved) return;
+    bullet._outcomeResolved = true;
+
+    const volleyId = bullet.superVolleyId;
+    if (volleyId) {
+      const state = this.superVolleyState?.[volleyId];
+      if (state) {
+        if (didHit) state.hit = true;
+        state.remaining = Math.max(0, (state.remaining || 0) - 1);
+        if (state.remaining <= 0) {
+          if (!state.hit) this.registerMiss();
+          delete this.superVolleyState[volleyId];
+        }
+      }
+      return;
+    }
+
+    if (!didHit) this.registerMiss();
+  }
+
   getComboMultiplier() {
     if (this.comboHits >= 20) return 5;
     if (this.comboHits >= 10) return 3;
@@ -2142,6 +2174,7 @@ class GameScene extends Phaser.Scene {
     const isBoss   = !!bird.isBoss;
     const bx = bird.x, by = bird.y;
 
+    this.resolveBulletOutcome(bullet, true);
     bullet.destroy();
 
     if (isBoss) {
