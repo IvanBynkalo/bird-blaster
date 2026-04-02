@@ -499,14 +499,15 @@ const LeaderboardService = {
     }
   },
 
-  async loadTop(limitCount = 10, modeId = "classic") {
-    const safeMode = getLeaderboardModeId(modeId);
+  async loadTop(limitCount = 10) {
     const db = this.init();
-    if (!db) return loadLocalLeaderboard(safeMode);
+    if (!db) return loadLocalLeaderboard();
 
     try {
       const snapshot = await db.collection(LEADERBOARD_COLLECTION)
-        .where("mode", "==", safeMode)
+        .orderBy("score", "desc")
+        .orderBy("createdAt", "asc")
+        .limit(limitCount)
         .get();
 
       const rows = snapshot.docs.map((doc) => {
@@ -514,19 +515,15 @@ const LeaderboardService = {
         return {
           name: sanitizePlayerName(data.name || "Игрок") || "Игрок",
           score: Number(data.score) || 0,
-          date: data.date || new Date().toISOString().slice(0, 10),
-          createdAt: Number(data.createdAt) || 0
+          date: data.date || new Date().toISOString().slice(0, 10)
         };
-      }).sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return (a.createdAt || 0) - (b.createdAt || 0);
-      }).slice(0, limitCount).map(({createdAt, ...row}) => row);
+      });
 
-      saveLocalLeaderboard(rows, safeMode);
+      saveLocalLeaderboard(rows);
       return rows;
     } catch (e) {
       console.warn("Global leaderboard load failed, using local:", e);
-      return loadLocalLeaderboard(safeMode);
+      return loadLocalLeaderboard();
     }
   },
 
@@ -686,7 +683,7 @@ class MenuScene extends Phaser.Scene {
     this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.86, H*0.702, "v15.8.4", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v15.8.3", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
