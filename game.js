@@ -640,6 +640,7 @@ class MenuScene extends Phaser.Scene {
 
   create() {
     hideDomModals();
+    try { this.input.enabled = true; } catch (e) {}
     const { width: W, height: H } = this.scale;
     this.skyBackdrop = this.add.rectangle(W/2, H/2, W, H, 0x8fd3ff, 1);
     this.bg = this.add.image(W/2, H/2, "bgDay").setDisplaySize(W, H);
@@ -1025,14 +1026,9 @@ class MenuScene extends Phaser.Scene {
       this.registry.set("playerName", finalName || "Игрок");
       closeModal();
       hideDomModals();
-      try {
-        if (this.scene.isActive("GameScene")) this.scene.stop("GameScene");
-      } catch (e) {}
-      this.input.enabled = false;
-      this.time.delayedCall(20, () => {
-        try { this.input.enabled = true; } catch (e) {}
-        this.scene.start("GameScene", { playerName: finalName || "Игрок", gameMode: this.registry.get("gameMode") || getSavedGameMode() });
-      });
+      try { this.input.enabled = true; } catch (e) {}
+      try { this.scene.stop("GameScene"); } catch (e) {}
+      this.scene.start("GameScene", { playerName: finalName || "Игрок", gameMode: this.registry.get("gameMode") || getSavedGameMode() });
     };
 
     startBtn.onclick = startGame;
@@ -1093,6 +1089,7 @@ class GameScene extends Phaser.Scene {
 
   create() {
     hideDomModals();
+    try { this.input.enabled = true; } catch (e) {}
     const { width: W, height: H } = this.scale;
     this.skyBackdrop = this.add.rectangle(W/2, H/2, W, H, 0x8fd3ff, 1);
     this.bg = this.add.image(W/2, H/2, "bgDay").setDisplaySize(W, H);
@@ -2225,10 +2222,8 @@ class GameScene extends Phaser.Scene {
     btn.once("pointerdown", ()=>{
       hideDomModals();
       btn.disableInteractive();
-      this.input.enabled = false;
-      this.time.delayedCall(20, () => {
-        this.scene.start("MenuScene");
-      });
+      try { this.input.enabled = true; } catch (e) {}
+      this.scene.start("MenuScene");
     });
 
     const rows = await LeaderboardService.addScore(this.playerName, finalScore, this.modeId);
