@@ -120,6 +120,33 @@ function getLeaderboardStorageKey(modeId) {
   return `${LEADERBOARD_KEY}_${getLeaderboardModeId(modeId)}`;
 }
 
+const AUTO_START_KEY = "bird_blaster_auto_start_v1";
+const AUTO_START_NAME_KEY = "bird_blaster_auto_start_name_v1";
+const AUTO_START_MODE_KEY = "bird_blaster_auto_start_mode_v1";
+
+function requestFreshGameStart(playerName, gameMode) {
+  try {
+    sessionStorage.setItem(AUTO_START_KEY, "1");
+    sessionStorage.setItem(AUTO_START_NAME_KEY, sanitizePlayerName(playerName || "Игрок") || "Игрок");
+    sessionStorage.setItem(AUTO_START_MODE_KEY, getLeaderboardModeId(gameMode || getSavedGameMode()));
+  } catch (e) {}
+  window.location.reload();
+}
+
+function consumeFreshGameStart() {
+  try {
+    if (sessionStorage.getItem(AUTO_START_KEY) !== "1") return null;
+    const playerName = sanitizePlayerName(sessionStorage.getItem(AUTO_START_NAME_KEY) || getSavedPlayerName() || "Игрок") || "Игрок";
+    const gameMode = getLeaderboardModeId(sessionStorage.getItem(AUTO_START_MODE_KEY) || getSavedGameMode());
+    sessionStorage.removeItem(AUTO_START_KEY);
+    sessionStorage.removeItem(AUTO_START_NAME_KEY);
+    sessionStorage.removeItem(AUTO_START_MODE_KEY);
+    return { playerName, gameMode };
+  } catch (e) {
+    return null;
+  }
+}
+
 function hideDomModals() {
   try {
     const ids = ["shop-modal", "name-modal"];
@@ -628,6 +655,13 @@ class BootScene extends Phaser.Scene {
     this.registry.set("missions", getMissionRows());
     this.registry.set("activeBulletStyle", getActiveBulletStyle());
     this.registry.set("ownedBulletStyles", loadOwnedBulletStyles());
+    const autoStart = consumeFreshGameStart();
+    if (autoStart) {
+      this.registry.set("playerName", autoStart.playerName);
+      this.registry.set("gameMode", autoStart.gameMode);
+      this.scene.start("GameScene", autoStart);
+      return;
+    }
     this.scene.start("MenuScene");
   }
 }
@@ -687,7 +721,7 @@ class MenuScene extends Phaser.Scene {
     this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.86, H*0.702, "v15.9", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v15.9.2", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
@@ -1023,12 +1057,12 @@ class MenuScene extends Phaser.Scene {
 
     const startGame = () => {
       const finalName = savePlayerName(input.value || "Игрок");
+      const gameMode = this.registry.get("gameMode") || getSavedGameMode();
       this.registry.set("playerName", finalName || "Игрок");
+      this.registry.set("gameMode", gameMode);
       closeModal();
       hideDomModals();
-      try { this.input.enabled = true; } catch (e) {}
-      try { this.scene.stop("GameScene"); } catch (e) {}
-      this.scene.start("GameScene", { playerName: finalName || "Игрок", gameMode: this.registry.get("gameMode") || getSavedGameMode() });
+      requestFreshGameStart(finalName || "Игрок", gameMode);
     };
 
     startBtn.onclick = startGame;
