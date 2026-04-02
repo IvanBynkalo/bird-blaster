@@ -179,3 +179,7 @@ service cloud.firestore {
 - вернул блок «Скины пуль» в магазин
 - починил загрузку глобального рейтинга по режимам без лишнего orderBy
 - оставил фикс рестарта после окончания игры
+
+
+## v16.1.1
+- fixed booster charge bars so SLOW/X2/SUPER progress fills visibly during combat.

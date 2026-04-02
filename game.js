@@ -721,7 +721,7 @@ class MenuScene extends Phaser.Scene {
     this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.86, H*0.702, "v16.1", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v16.1.1", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
@@ -1247,6 +1247,7 @@ class GameScene extends Phaser.Scene {
     this.x2BtnText = this.add.text(W - 100, H - 120, "X2\n10 HIT", { fontSize:"20px", align:"center", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5).setDepth(16);
     this.x2Btn.on("pointerdown", () => this.activateDoubleScore());
     this.updateBoosterButtons();
+    this.updateBoosterBars();
 
     this.physics.add.overlap(this.bullets, this.birds, this.handleBulletHitBird, null, this);
 
@@ -1314,6 +1315,8 @@ class GameScene extends Phaser.Scene {
       const speed = Math.round(600 + t * 1400);
       this.chargeLabel.setText(t < 0.05 ? "" : `${speed} px/s`);
     }
+
+    this.updateBoosterBars();
 
     const bulletList = this.bullets.children.entries.slice();
     const birdList = this.birds.children.entries.slice();
@@ -1927,6 +1930,39 @@ class GameScene extends Phaser.Scene {
     return { trail: 0x00e5ff, secondary: 0x80deea, radius: 5, repeat: 5, alpha: 0.55, pulse: false, hitPalette: [0x00e5ff, 0x80deea, 0xb2ebf2], shake: 0.004 };
   }
 
+  updateBoosterBars() {
+    if (!this.slowBarFill || !this.x2BarFill || !this.superBarFill) return;
+    const slowNeed = 6;
+    const x2Need = 10;
+    const slowHits = Phaser.Math.Clamp(this.comboHits, 0, slowNeed);
+    const x2Hits = Phaser.Math.Clamp(this.comboHits, 0, x2Need);
+    const slowT = this.slowMoReady || this.slowMoActive ? 1 : (slowHits / slowNeed);
+    const x2T = this.doubleScoreReady || this.doubleScoreActive ? 1 : (x2Hits / x2Need);
+    this.slowBarFill.width = Math.round(124 * slowT);
+    this.x2BarFill.width = Math.round(124 * x2T);
+    if (this.slowMoReady || this.slowMoActive) {
+      this.slowBarFill.setFillStyle(0x7dd3fc, 1);
+    } else {
+      this.slowBarFill.setFillStyle(0x29b6f6, 0.95);
+    }
+    if (this.doubleScoreReady || this.doubleScoreActive) {
+      this.x2BarFill.setFillStyle(0xffd180, 1);
+    } else {
+      this.x2BarFill.setFillStyle(0xffb74d, 0.95);
+    }
+    const superShotsNeed = Math.max(1, this.superThreshold || 6);
+    const superT = Phaser.Math.Clamp((this.superCharge || 0) / superShotsNeed, 0, 1);
+    this.superBarFill.width = Math.round(216 * superT);
+    this.superBarFill.setFillStyle(this.superReady ? 0xfff176 : 0xFFD700, 0.98);
+    if (this.superReady) {
+      this.superLabel.setText('SUPER READY');
+    } else if (this.superCharge > 0) {
+      this.superLabel.setText(`${this.superCharge}/${superShotsNeed}`);
+    } else {
+      this.superLabel.setText('');
+    }
+  }
+
   updateBoosterButtons() {
     if (!this.slowBtn || !this.x2Btn) return;
     const slowColor = this.slowMoActive ? 0x00acc1 : (this.slowMoReady ? 0x039be5 : 0x455a64);
@@ -1942,6 +1978,7 @@ class GameScene extends Phaser.Scene {
     this.slowMoReady = false;
     this.slowMoActive = true;
     this.updateBoosterButtons();
+    this.updateBoosterBars();
     this.birds.children.entries.forEach((bird) => {
       if (bird?.body) {
         bird.body.velocity.x *= 0.45;
@@ -1961,6 +1998,7 @@ class GameScene extends Phaser.Scene {
         }
       });
       this.updateBoosterButtons();
+      this.updateBoosterBars();
     });
   }
 
@@ -1969,6 +2007,7 @@ class GameScene extends Phaser.Scene {
     this.doubleScoreReady = false;
     this.doubleScoreActive = true;
     this.updateBoosterButtons();
+    this.updateBoosterBars();
     const label = this.add.text(this.scale.width/2, 220, "⚡ DOUBLE SCORE", {
       fontSize:"34px", color:"#ffcc80", stroke:"#000", strokeThickness:6, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(30);
@@ -1976,6 +2015,7 @@ class GameScene extends Phaser.Scene {
     this.time.delayedCall(6000, () => {
       this.doubleScoreActive = false;
       this.updateBoosterButtons();
+      this.updateBoosterBars();
     });
   }
 
@@ -2017,6 +2057,7 @@ class GameScene extends Phaser.Scene {
     this.comboHits = 0;
     this.comboMult = 1;
     this.updateComboUI();
+    this.updateBoosterBars();
   }
 
   addCombo() {
@@ -2026,6 +2067,7 @@ class GameScene extends Phaser.Scene {
     if (this.comboHits >= 10 && !this.doubleScoreReady && !this.doubleScoreActive) this.doubleScoreReady = true;
     this.updateComboUI();
     this.updateBoosterButtons();
+    this.updateBoosterBars();
     if (this.comboHits > 1) {
       this.tweens.add({ targets:this.comboText, scaleX:1.12, scaleY:1.12, duration:90, yoyo:true });
     }
