@@ -721,14 +721,14 @@ class MenuScene extends Phaser.Scene {
     this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.86, H*0.702, "v15.9.2", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v16.0", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
 
-    const btnY = H*0.94;
-    const btn = this.add.rectangle(W/2, btnY, 410, 86, 0xff6f00).setStrokeStyle(6, 0xFFD700).setInteractive({ useHandCursor: true }).setDepth(4);
-    this.add.text(W/2, btnY, "ИГРАТЬ!", { fontSize:"50px", color:"#fff", stroke:"#000", strokeThickness:7, fontStyle:"bold" }).setOrigin(0.5).setDepth(5);
+    const btnY = H*0.955;
+    const btn = this.add.rectangle(W/2, btnY, 390, 76, 0xff6f00).setStrokeStyle(6, 0xFFD700).setInteractive({ useHandCursor: true }).setDepth(4);
+    this.add.text(W/2, btnY, "ИГРАТЬ!", { fontSize:"44px", color:"#fff", stroke:"#000", strokeThickness:7, fontStyle:"bold" }).setOrigin(0.5).setDepth(5);
     this.tweens.add({ targets:btn, scaleX:1.03, scaleY:1.03, duration:700, yoyo:true, repeat:-1 });
     btn.on("pointerdown", () => this.openNameModal());
 
@@ -768,17 +768,17 @@ class MenuScene extends Phaser.Scene {
     const missions = getMissionRows();
     this.registry.set("missions", missions);
     missions.forEach((mission, index) => {
-      const y = this.boardY + 116 + index * 42;
+      const y = this.boardY + 66 + index * 34;
       const done = mission.claimed;
-      const card = this.add.rectangle(this.boardX, y, 524, 34, done ? 0x143c14 : 0x102238, 0.72)
+      const card = this.add.rectangle(this.boardX, y, 524, 28, done ? 0x143c14 : 0x102238, 0.76)
         .setStrokeStyle(2, done ? 0x7CFF00 : 0x3ab4ff, 0.9).setDepth(3.5);
       const label = `${done ? "✅" : "🎯"} ${mission.title}`;
       const progress = done ? `+${mission.reward} взято` : `${mission.value}/${mission.goal}  •  +${mission.reward}`;
       const left = this.add.text(this.boardX - 246, y, label, {
-        fontSize:"17px", color: done ? "#b9ffb9" : "#fff", stroke:"#000", strokeThickness:4
+        fontSize:"15px", color: done ? "#b9ffb9" : "#fff", stroke:"#000", strokeThickness:4
       }).setOrigin(0, 0.5).setDepth(4);
       const right = this.add.text(this.boardX + 246, y, progress, {
-        fontSize:"16px", color: done ? "#7CFF00" : "#FFD700", stroke:"#000", strokeThickness:4, fontStyle:"bold"
+        fontSize:"14px", color: done ? "#7CFF00" : "#FFD700", stroke:"#000", strokeThickness:4, fontStyle:"bold"
       }).setOrigin(1, 0.5).setDepth(4);
       this.missionTexts.push(card, left, right);
     });
@@ -787,24 +787,24 @@ class MenuScene extends Phaser.Scene {
   drawLeaderboardShell() {
     const { width: W, height: H } = this.scale;
     const boardX = W / 2;
-    const boardY = H * 0.818;
+    const boardY = H * 0.78;
     this.boardX = boardX;
     this.boardY = boardY;
 
-    this.boardPanel = this.add.rectangle(boardX, boardY, 580, 282, 0x05111f, 0.58).setStrokeStyle(4, 0xFFD700).setDepth(3);
-    this.boardHeader = this.add.rectangle(boardX, boardY - 110, 540, 44, 0x4a2d14, 0.9).setStrokeStyle(2, 0xFFD700).setDepth(3.2);
-    this.boardTitle = this.add.text(boardX, boardY - 110, "🏆 ЛУЧШИЕ ИГРОКИ", {
+    this.boardPanel = this.add.rectangle(boardX, boardY, 580, 236, 0x05111f, 0.58).setStrokeStyle(4, 0xFFD700).setDepth(3);
+    this.boardHeader = this.add.rectangle(boardX, boardY - 92, 540, 40, 0x4a2d14, 0.9).setStrokeStyle(2, 0xFFD700).setDepth(3.2);
+    this.boardTitle = this.add.text(boardX, boardY - 92, "🏆 ЛУЧШИЕ ИГРОКИ", {
       fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
-    this.boardModeText = this.add.text(boardX, boardY - 82, LeaderboardService.getStatusLabel(this.registry.get("gameMode") || getSavedGameMode()), {
+    this.boardModeText = this.add.text(boardX, boardY - 66, LeaderboardService.getStatusLabel(this.registry.get("gameMode") || getSavedGameMode()), {
       fontSize:"16px", color:"#7de3ff", stroke:"#000", strokeThickness:4, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
-    this.boardLoadingText = this.add.text(boardX, boardY - 34, "Загрузка рейтинга...", {
+    this.boardLoadingText = this.add.text(boardX, boardY - 12, "Загрузка рейтинга...", {
       fontSize:"22px", align:"center", color:"#fff", stroke:"#000", strokeThickness:4
     }).setOrigin(0.5).setDepth(4);
 
-    this.missionDivider = this.add.line(boardX, boardY + 6, -248, 0, 248, 0, 0x3ab4ff, 0.65).setLineWidth(2, 2).setDepth(3.2);
-    this.missionTitle = this.add.text(boardX, boardY + 28, "🎯 МИССИИ", {
+    this.missionDivider = this.add.line(boardX, boardY + 12, -248, 0, 248, 0, 0x3ab4ff, 0.65).setLineWidth(2, 2).setDepth(3.2);
+    this.missionTitle = this.add.text(boardX, boardY + 32, "🎯 МИССИИ", {
       fontSize:"26px", color:"#00e5ff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
     this.missionTexts = [];
@@ -839,7 +839,7 @@ class MenuScene extends Phaser.Scene {
 
     this.boardLoadingText.setVisible(false);
 
-    const visibleRows = rows.slice(0, 5);
+    const visibleRows = rows.slice(0, 3);
     const rowColors = [
       { fill: 0x6b4f12, stroke: 0xffd54f, medal: 0xffd54f, scoreFill: 0x4b390d, scoreStroke: 0xffec99 },
       { fill: 0x4e545d, stroke: 0xdfe6ee, medal: 0xdfe6ee, scoreFill: 0x3b4047, scoreStroke: 0xf5f7fa },
@@ -849,7 +849,7 @@ class MenuScene extends Phaser.Scene {
     ];
 
     visibleRows.forEach((row, index) => {
-      const y = this.boardY - 36 + index * 31;
+      const y = this.boardY - 42 + index * 34;
       const theme = rowColors[index] || rowColors[rowColors.length - 1];
       const rank = index + 1;
       const medalLabel = String(rank);
@@ -1300,10 +1300,16 @@ class GameScene extends Phaser.Scene {
 
   getWaveProfile(index) {
     const cycle = (index - 1) % 4;
-    if (cycle === 0) return { id: "balanced", label: "Базовая волна", bonus: "+0% очков", weights: { blue: 58, red: 22, black: 10, gold: 10 }, scoreMult: 1, speedMult: 1 };
-    if (cycle === 1) return { id: "speed", label: "Шторм", bonus: "+20% очков • быстрые птицы", weights: { blue: 34, red: 46, black: 10, gold: 10 }, scoreMult: 1.2, speedMult: 1.18 };
-    if (cycle === 2) return { id: "gold", label: "Золотая волна", bonus: "много золотых птиц", weights: { blue: 24, red: 16, black: 8, gold: 52 }, scoreMult: 1.15, speedMult: 1.05 };
-    return { id: "shadow", label: "Ночная волна", bonus: "+35% очков • длиннее комбо", weights: { blue: 34, red: 24, black: 24, gold: 18 }, scoreMult: 1.35, speedMult: 1.12 };
+    const stage = Math.floor((index - 1) / 4) + 1;
+    const stageSpeed = 1 + (stage - 1) * 0.08;
+    const stageScore = 1 + (stage - 1) * 0.10;
+    const stageBlack = Math.min(34, 10 + (stage - 1) * 4);
+    const stageGold = Math.min(58, 10 + (stage - 1) * 5);
+    const stageLabel = stage > 1 ? ` • этап ${stage}` : '';
+    if (cycle === 0) return { id: "balanced", label: `Базовая волна${stageLabel}`, bonus: stage > 1 ? `этап ${stage} • враги сильнее` : "+0% очков", weights: { blue: Math.max(26, 58 - (stage - 1) * 6), red: Math.min(34, 22 + (stage - 1) * 2), black: stageBlack, gold: Math.min(24, 10 + (stage - 1) * 2) }, scoreMult: 1 * stageScore, speedMult: 1 * stageSpeed, stage };
+    if (cycle === 1) return { id: "speed", label: `Шторм${stageLabel}`, bonus: `+20% очков • быстрые птицы • этап ${stage}`, weights: { blue: Math.max(16, 34 - (stage - 1) * 4), red: Math.min(56, 46 + (stage - 1) * 3), black: stageBlack, gold: Math.min(24, 10 + (stage - 1) * 2) }, scoreMult: 1.2 * stageScore, speedMult: 1.18 * stageSpeed, stage };
+    if (cycle === 2) return { id: "gold", label: `Золотая волна${stageLabel}`, bonus: `много золотых птиц • этап ${stage}`, weights: { blue: Math.max(10, 24 - (stage - 1) * 2), red: Math.min(24, 16 + (stage - 1) * 2), black: Math.min(18, 8 + (stage - 1) * 2), gold: stageGold }, scoreMult: 1.15 * stageScore, speedMult: 1.05 * stageSpeed, stage };
+    return { id: "shadow", label: `Ночная волна${stageLabel}`, bonus: `+35% очков • длиннее комбо • этап ${stage}`, weights: { blue: Math.max(16, 34 - (stage - 1) * 3), red: Math.min(28, 24 + (stage - 1) * 2), black: Math.min(40, 24 + (stage - 1) * 4), gold: Math.min(28, 18 + (stage - 1) * 2) }, scoreMult: 1.35 * stageScore, speedMult: 1.12 * stageSpeed, stage };
   }
 
   getAliveBirdCount(includeBoss = true) {
@@ -1566,18 +1572,20 @@ class GameScene extends Phaser.Scene {
     this.waveInTransition = false;
     this.waveProfile = this.getWaveProfile(index);
     this.applyWaveTheme(this.getThemeForWaveProfile(this.waveProfile.id));
+    const stage = this.waveProfile?.stage || (Math.floor((index - 1) / 4) + 1);
+    this.stageTier = stage;
     const modeBonus = this.modeId === "timeAttack" ? -4 : 0;
-    this.waveBirdTarget = Math.max(this.modeId === "timeAttack" ? 14 : 18, 18 + index * 5 + modeBonus);
+    this.waveBirdTarget = Math.max(this.modeId === "timeAttack" ? 14 : 18, 18 + index * 5 + modeBonus + (stage - 1) * 4);
     this.waveBirdSpawned = 0;
     this.bossSpawnedThisWave = false;
     this.bossActive = false;
     this.bossBird = null;
     const pressureFactor = this.timePressureLevel === 2 ? 140 : this.timePressureLevel === 1 ? 80 : 0;
-    this.spawnDelayCurrent = Math.max(620, (this.modeId === "timeAttack" ? 1080 : 1320) - index * 34 - pressureFactor);
-    this.speedWaveMultiplier = (this.waveProfile?.speedMult || 1) + (index - 1) * 0.045 + (this.modeId === "timeAttack" ? 0.08 : 0) + this.timePressureLevel * 0.04;
+    this.spawnDelayCurrent = Math.max(520, (this.modeId === "timeAttack" ? 1080 : 1320) - index * 34 - pressureFactor - (stage - 1) * 48);
+    this.speedWaveMultiplier = (this.waveProfile?.speedMult || 1) + (index - 1) * 0.045 + (this.modeId === "timeAttack" ? 0.08 : 0) + this.timePressureLevel * 0.04 + (stage - 1) * 0.06;
     this.bossHpText.setVisible(false).setText("");
     this.updateWaveHud();
-    this.showWaveBanner(`WAVE ${index}`, this.getShortWaveBonus(this.waveProfile));
+    this.showWaveBanner(`WAVE ${index} • STAGE ${stage}`, this.getShortWaveBonus(this.waveProfile));
     this.setSpawnDelay(this.spawnDelayCurrent);
   }
 
@@ -1605,8 +1613,9 @@ class GameScene extends Phaser.Scene {
     boss.setScale(0.28);
     this.applyBirdHitbox(boss);
     boss.isBoss = true;
-    boss.points = 1500 + this.waveIndex * 300;
-    boss.hp = 7 + this.waveIndex * 2 + (this.modeId === "timeAttack" ? 2 : 0);
+    const stage = this.stageTier || Math.floor((this.waveIndex - 1) / 4) + 1;
+    boss.points = Math.round((1500 + this.waveIndex * 300) * (1 + (stage - 1) * 0.45));
+    boss.hp = Math.round((7 + this.waveIndex * 2 + (this.modeId === "timeAttack" ? 2 : 0)) * (1 + (stage - 1) * 0.30));
     boss.maxHp = boss.hp;
     boss.setFlipX(!startLeft);
     boss.body.allowGravity = false;
@@ -1633,7 +1642,7 @@ class GameScene extends Phaser.Scene {
 
     this.applyWaveTheme(this.getThemeForWaveProfile(this.waveProfile?.id, true));
     this.bossHpText.setVisible(true).setText(`👑 BOSS HP: ${boss.hp}/${boss.maxHp}`);
-    this.showWaveBanner("👑 BOSS WAVE", `HP ${boss.hp} · награда ${boss.points}`);
+    this.showWaveBanner(`👑 BOSS STAGE ${stage}`, `HP ${boss.hp} · награда ${boss.points}`);
   }
 
   updateBossHpUI() {
