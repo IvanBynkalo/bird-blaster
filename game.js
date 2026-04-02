@@ -499,15 +499,14 @@ const LeaderboardService = {
     }
   },
 
-  async loadTop(limitCount = 10) {
+  async loadTop(limitCount = 10, modeId = "classic") {
+    const safeMode = getLeaderboardModeId(modeId);
     const db = this.init();
-    if (!db) return loadLocalLeaderboard();
+    if (!db) return loadLocalLeaderboard(safeMode);
 
     try {
       const snapshot = await db.collection(LEADERBOARD_COLLECTION)
-        .orderBy("score", "desc")
-        .orderBy("createdAt", "asc")
-        .limit(limitCount)
+        .where("mode", "==", safeMode)
         .get();
 
       const rows = snapshot.docs.map((doc) => {
@@ -515,15 +514,19 @@ const LeaderboardService = {
         return {
           name: sanitizePlayerName(data.name || "Игрок") || "Игрок",
           score: Number(data.score) || 0,
-          date: data.date || new Date().toISOString().slice(0, 10)
+          date: data.date || new Date().toISOString().slice(0, 10),
+          createdAt: Number(data.createdAt) || 0
         };
-      });
+      }).sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return (a.createdAt || 0) - (b.createdAt || 0);
+      }).slice(0, limitCount).map(({createdAt, ...row}) => row);
 
-      saveLocalLeaderboard(rows);
+      saveLocalLeaderboard(rows, safeMode);
       return rows;
     } catch (e) {
       console.warn("Global leaderboard load failed, using local:", e);
-      return loadLocalLeaderboard();
+      return loadLocalLeaderboard(safeMode);
     }
   },
 
@@ -683,7 +686,7 @@ class MenuScene extends Phaser.Scene {
     this.modeText = this.add.text(W*0.74, H*0.662, "", { fontSize:"20px", color:"#fff", stroke:"#000", strokeThickness:5, fontStyle:"bold", align:"center" }).setOrigin(0.5).setDepth(4);
     this.modeBtn.on("pointerdown", () => this.toggleMode());
 
-    this.versionText = this.add.text(W*0.86, H*0.702, "v15.8.3", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
+    this.versionText = this.add.text(W*0.86, H*0.702, "v15.9", { fontSize:"22px", color:"#b3e5fc", stroke:"#000", strokeThickness:5, fontStyle:"bold" }).setOrigin(0.5).setDepth(4);
 
     this.drawLeaderboardShell();
     this.refreshLeaderboard();
@@ -755,7 +758,7 @@ class MenuScene extends Phaser.Scene {
 
     this.boardPanel = this.add.rectangle(boardX, boardY, 580, 282, 0x05111f, 0.58).setStrokeStyle(4, 0xFFD700).setDepth(3);
     this.boardHeader = this.add.rectangle(boardX, boardY - 110, 540, 44, 0x4a2d14, 0.9).setStrokeStyle(2, 0xFFD700).setDepth(3.2);
-    this.boardTitle = this.add.text(boardX, boardY - 110, "🏆 ТОП 5 — РЕЖИМ", {
+    this.boardTitle = this.add.text(boardX, boardY - 110, "🏆 ЛУЧШИЕ ИГРОКИ", {
       fontSize:"28px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
     }).setOrigin(0.5).setDepth(4);
     this.boardModeText = this.add.text(boardX, boardY - 82, LeaderboardService.getStatusLabel(this.registry.get("gameMode") || getSavedGameMode()), {
@@ -778,6 +781,11 @@ class MenuScene extends Phaser.Scene {
     this.boardRowTexts = [];
   }
 
+  formatLeaderboardName(name) {
+    const raw = String(name || 'Игрок');
+    return raw.length > 13 ? `${raw.slice(0, 12)}…` : raw;
+  }
+
   async refreshLeaderboard() {
     this.clearBoardRows();
     this.boardLoadingText.setVisible(true).setText("Загрузка рейтинга...");
@@ -795,16 +803,47 @@ class MenuScene extends Phaser.Scene {
     }
 
     this.boardLoadingText.setVisible(false);
-    rows.slice(0, 5).forEach((row, index) => {
-      const y = this.boardY - 34 + index * 30;
-      const prefix = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index+1}.`;
-      const left = this.add.text(this.boardX - 228, y, `${prefix} ${row.name}`, {
-        fontSize:"22px", color:"#fff", stroke:"#000", strokeThickness:4
+
+    const visibleRows = rows.slice(0, 5);
+    const rowColors = [
+      { fill: 0x6b4f12, stroke: 0xffd54f, medal: 0xffd54f, scoreFill: 0x4b390d, scoreStroke: 0xffec99 },
+      { fill: 0x4e545d, stroke: 0xdfe6ee, medal: 0xdfe6ee, scoreFill: 0x3b4047, scoreStroke: 0xf5f7fa },
+      { fill: 0x6b3f24, stroke: 0xd7a07a, medal: 0xd7a07a, scoreFill: 0x4c2e1e, scoreStroke: 0xe8b899 },
+      { fill: 0x102238, stroke: 0x2eb8ff, medal: 0x2eb8ff, scoreFill: 0x0a1625, scoreStroke: 0x7de3ff },
+      { fill: 0x102238, stroke: 0x2eb8ff, medal: 0x2eb8ff, scoreFill: 0x0a1625, scoreStroke: 0x7de3ff }
+    ];
+
+    visibleRows.forEach((row, index) => {
+      const y = this.boardY - 36 + index * 31;
+      const theme = rowColors[index] || rowColors[rowColors.length - 1];
+      const rank = index + 1;
+      const medalLabel = String(rank);
+      const displayName = this.formatLeaderboardName(row.name);
+
+      const card = this.add.rectangle(this.boardX, y, 520, 28, theme.fill, 0.92)
+        .setStrokeStyle(2, theme.stroke, 1)
+        .setDepth(3.6);
+      const medal = this.add.circle(this.boardX - 226, y, 14, theme.medal, 1)
+        .setStrokeStyle(2, 0xffffff, 0.9)
+        .setDepth(3.8);
+      const medalText = this.add.text(this.boardX - 226, y, medalLabel, {
+        fontSize: '15px',
+        color: '#1b1b1b',
+        fontStyle: 'bold',
+        stroke: '#ffffff',
+        strokeThickness: 1
+      }).setOrigin(0.5).setDepth(4);
+      const nameText = this.add.text(this.boardX - 202, y, displayName, {
+        fontSize:'18px', color:'#ffffff', stroke:'#000', strokeThickness:3, fontStyle: index < 3 ? 'bold' : 'normal'
       }).setOrigin(0, 0.5).setDepth(4);
-      const right = this.add.text(this.boardX + 228, y, `${row.score}`, {
-        fontSize:"22px", color:"#7CFF00", stroke:"#000", strokeThickness:4, fontStyle:"bold"
-      }).setOrigin(1, 0.5).setDepth(4);
-      this.boardRowTexts.push(left, right);
+      const scorePill = this.add.rectangle(this.boardX + 186, y, 104, 22, theme.scoreFill, 1)
+        .setStrokeStyle(2, theme.scoreStroke, 1)
+        .setDepth(3.85);
+      const scoreText = this.add.text(this.boardX + 186, y, String(row.score), {
+        fontSize:'18px', color:'#7CFF00', stroke:'#000', strokeThickness:3, fontStyle:'bold'
+      }).setOrigin(0.5).setDepth(4);
+
+      this.boardRowTexts.push(card, medal, medalText, nameText, scorePill, scoreText);
     });
   }
 
