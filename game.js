@@ -650,6 +650,11 @@ class BootScene extends Phaser.Scene {
     this.load.image("hitRainbow",    "assets/hits/hit_rainbow.png");
     this.load.image("hitPlasma",     "assets/hits/hit_plasma.png");
     this.load.image("feather",       "assets/feather.png");
+    this.load.image("birdBonus1",    "assets/birds/bird_bonus_life.png");
+    this.load.image("birdBonus2",    "assets/birds/bird_bonus_x3.png");
+    this.load.image("birdBonus3",    "assets/birds/bird_bonus_slow.png");
+    this.load.image("birdBonus4",    "assets/birds/bird_bonus_magnet.png");
+    this.load.image("birdBonus5",    "assets/birds/bird_bonus_rainbow.png");
   }
 
   create() {
@@ -946,6 +951,7 @@ class MenuScene extends Phaser.Scene {
     const buyBulletLabBtn = document.getElementById("buy-bullet-lab-btn");
     const buyCritBtn = document.getElementById("buy-crit-tech-btn");
     const openCaseBtn = document.getElementById("open-lucky-case-btn");
+    const buyBonusBirdBtn = document.getElementById("buy-bonus-bird-btn");
     const coinsLabel = document.getElementById("shop-coins-label");
     const bulletCurrentLabel = document.getElementById("shop-bullet-current");
     const bulletButtons = {
@@ -998,6 +1004,17 @@ class MenuScene extends Phaser.Scene {
       if (lvlBullet) lvlBullet.textContent = `Уровень: ${state.bulletLabLevel}/10`;
       if (lvlCrit) lvlCrit.textContent = `Уровень: ${state.critTechLevel}/5`;
       if (caseStat) caseStat.textContent = `Открыто кейсов: ${state.luckyCaseOpened || 0}`;
+      const lvlBonusBird = document.getElementById('shop-bonus-bird-level');
+      if (lvlBonusBird) {
+        const lvl = state.bonusBirdRateLevel || 0;
+        const chance = 8 + lvl * 2;
+        lvlBonusBird.textContent = `Уровень: ${lvl}/4 · Шанс: ${chance}%`;
+      }
+      if (buyBonusBirdBtn) {
+        const lvl = state.bonusBirdRateLevel || 0;
+        if (lvl >= 4) { buyBonusBirdBtn.disabled = true; buyBonusBirdBtn.textContent = 'MAX LEVEL'; }
+        else { buyBonusBirdBtn.disabled = false; buyBonusBirdBtn.textContent = `Улучшить до ${lvl+1} — ${getUpgradePrice('bonusBirdRate', lvl)}`; }
+      }
       const activeStyle = getActiveBulletStyle();
       const activeMeta = getBulletStyleMeta(activeStyle);
       const ownedStyles = loadOwnedBulletStyles();
@@ -1042,6 +1059,11 @@ class MenuScene extends Phaser.Scene {
     buyRapidBtn.onclick = () => { const res = buyUpgrade('fireRate'); insufficient(res); render(); };
     buyBulletLabBtn.onclick = () => { const res = buyUpgrade('bulletLab'); insufficient(res); render(); };
     buyCritBtn.onclick = () => { const res = buyUpgrade('critTech'); insufficient(res); render(); };
+    if (buyBonusBirdBtn) buyBonusBirdBtn.onclick = () => {
+      const res = buyUpgrade('bonusBirdRate');
+      if (res.ok) render();
+      else if (res.reason === 'coins') alert(`Нужно ${res.price} монет, у вас ${res.coins}`);
+    };
     openCaseBtn.onclick = () => {
       const res = openLuckyCase();
       if (!res.ok && res.reason === 'coins') {
@@ -1142,7 +1164,13 @@ class GameScene extends Phaser.Scene {
     this.missStreak  = 0;
     this.hitStreak   = 0;
     this.comboHits   = 0;
-    this.comboMult   = 1;
+    this.comboMult   = 1; // kept for compatibility, always 1
+    this.bonusBirdChance = 0.08 + (loadShopState().bonusBirdRateLevel || 0) * 0.02;
+    this.magnetActive = false;
+    this.rainbowBonusPending = false;
+    this.x3ScoreActive = false;
+    this.x3ScoreTimer = null;
+    this.x3TimerText = null;
     this.superReady  = false;
     this.holdStart   = 0;
     this.isHolding   = false;
@@ -1250,10 +1278,10 @@ class GameScene extends Phaser.Scene {
 
     this.slowBtn = this.add.rectangle(100, H - 120, 140, 62, 0x455a64, 0.95).setStrokeStyle(4, 0x90caf9).setInteractive({ useHandCursor: true }).setDepth(15);
     this.slowBtnText = this.add.text(100, H - 120, "SLOW\n6 HIT", { fontSize:"20px", align:"center", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5).setDepth(16);
-    this.slowBtn.on("pointerdown", () => this.activateSlowMo());
+    this.slowBtn.on("pointerdown", (ptr) => { ptr.event.stopPropagation(); this.isHolding = false; this.activateSlowMo(); });
     this.x2Btn = this.add.rectangle(W - 100, H - 120, 140, 62, 0x6a1b9a, 0.95).setStrokeStyle(4, 0xffcc80).setInteractive({ useHandCursor: true }).setDepth(15);
     this.x2BtnText = this.add.text(W - 100, H - 120, "X2\n10 HIT", { fontSize:"20px", align:"center", color:"#fff", stroke:"#000", strokeThickness:4, fontStyle:"bold" }).setOrigin(0.5).setDepth(16);
-    this.x2Btn.on("pointerdown", () => this.activateDoubleScore());
+    this.x2Btn.on("pointerdown", (ptr) => { ptr.event.stopPropagation(); this.isHolding = false; this.activateDoubleScore(); });
     this.updateBoosterButtons();
     this.updateBoosterBars();
 
@@ -1355,7 +1383,15 @@ class GameScene extends Phaser.Scene {
 
     for(const bird of birdList) {
       if(!bird.active) continue;
+      if (bird._bonusLabel) {
+        if (bird._bonusLabel.active) {
+          bird._bonusLabel.setPosition(bird.x, bird.y - 50);
+        } else {
+          bird._bonusLabel = null;
+        }
+      }
       if(!bird.isBoss && (bird.x < -180 || bird.x > W+180 || bird.y < -180 || bird.y > H+180)) {
+        if (bird._bonusLabel && bird._bonusLabel.active) bird._bonusLabel.destroy();
         bird.destroy();
       }
     }
@@ -2294,13 +2330,45 @@ class GameScene extends Phaser.Scene {
     const targetX = side===0 ? W+200 : -200;
     const targetY = spawnY + Phaser.Math.Between(-90,90);
 
-    const bird = this.birds.create(startX, spawnY, texture);
+    // Bonus bird chance
+    let bonusType = 0;
+    if (!isDanger && Math.random() < (this.bonusBirdChance || 0.08)) {
+      const roll = Math.random();
+      if      (roll < 0.22) bonusType = 1; // extra life
+      else if (roll < 0.44) bonusType = 2; // x3 score
+      else if (roll < 0.66) bonusType = 3; // slow
+      else if (roll < 0.83) bonusType = 4; // magnet
+      else                  bonusType = 5; // rainbow
+    }
+
+    const bonusTextures = { 1:"birdBonus1", 2:"birdBonus2", 3:"birdBonus3", 4:"birdBonus4", 5:"birdBonus5" };
+    const bonusTints    = { 1:0x00ff88, 2:0xffcc00, 3:0x00cfff, 4:0xff44aa, 5:0xffffff };
+    const finalTexture  = bonusType && this.textures.exists(bonusTextures[bonusType]) ? bonusTextures[bonusType] : texture;
+
+    const bird = this.birds.create(startX, spawnY, finalTexture);
     bird.setScale(scale);
     this.applyBirdHitbox(bird);
-    bird.points   = points;
+    bird.points   = bonusType ? 0 : points;
     bird.isDanger = isDanger;
     bird.isBoss   = false;
+    bird.bonusType = bonusType;
     bird.setFlipX(side===1);
+
+    if (bonusType && !this.textures.exists(bonusTextures[bonusType])) {
+      bird.setTint(bonusTints[bonusType]);
+    }
+
+    // Пульсирующий значок над бонусной птицей
+    if (bonusType) {
+      const bonusIcons = { 1:"❤", 2:"✕3", 3:"❄", 4:"🧲", 5:"🌈" };
+      const lbl = this.add.text(0, -40, bonusIcons[bonusType], {
+        fontSize:"28px", stroke:"#000", strokeThickness:4
+      }).setOrigin(0.5).setDepth(12);
+      this.tweens.add({ targets:lbl, y:lbl.y-6, duration:500, yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
+      // Привязываем лейбл к птице через update-ref
+      bird._bonusLabel = lbl;
+    }
+
     this.physics.moveTo(bird, targetX, targetY, speed * this.speedWaveMultiplier * (this.slowMoActive ? 0.45 : 1));
     this.tweens.add({ targets:bird, y:bird.y+Phaser.Math.Between(-30,30), duration:Phaser.Math.Between(450,850), yoyo:true, repeat:-1, ease:"Sine.easeInOut" });
 
@@ -2375,11 +2443,11 @@ class GameScene extends Phaser.Scene {
           angle:Phaser.Math.Between(-180,180), alpha:0, duration:900+Math.random()*300, ease:"Quad.easeOut", onComplete:()=>f.destroy() });
       }
 
-      const runMult = this.doubleScoreActive ? 2 : 1;
+      const runMult = (this.doubleScoreActive ? 2 : 1) * (this.x3ScoreActive ? 3 : 1);
       const waveMult = this.waveProfile?.scoreMult || 1;
       const isCrit = Math.random() < this.critChance;
       const critMult = isCrit ? 2 : 1;
-      const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult);
+      const gained = Math.round(pts * runMult * waveMult * critMult);
       this.score += gained;
       this.scoreText.setText(`SCORE: ${this.score}`);
       const bossPopup = this.add.text(bx, by-40, `${isCrit ? 'CRIT!  ' : ''}👑 BOSS DOWN  +${gained}`, {
@@ -2391,7 +2459,31 @@ class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Destroy bonus label
+    if (bird._bonusLabel && bird._bonusLabel.active) bird._bonusLabel.destroy();
     bird.destroy();
+
+    // ── Bonus bird hit ──────────────────────────────────────────
+    if (bird.bonusType) {
+      this.applyBonusBird(bird.bonusType, bx, by);
+      this.missStreak = 0;
+      for(let i=0;i<3;i++) this.missIcons[i].setColor("#888");
+      this.addCombo();
+      this.sessionHits++;
+      this.hitStreak++;
+      for(let i=0;i<3;i++) {
+        this.hitIcons[i].setColor(i < this.hitStreak ? "#FFD700" : "#555");
+        this.hitIcons[i].setText(i < this.hitStreak ? "★" : "◎");
+      }
+      if(this.hitStreak >= 3) {
+        this.hitStreak = 0;
+        this.superReady = true;
+        this.superLabel.setText("⚡ СУПЕР!");
+        this.tweens.add({ targets:this.superLabel, scaleX:1.2, scaleY:1.2, duration:300, yoyo:true, repeat:2 });
+        for(let i=0;i<3;i++) { this.hitIcons[i].setColor("#00e5ff"); this.hitIcons[i].setText("★"); }
+      }
+      return;
+    }
 
     if(isDanger) {
       const skull = this.add.text(bx, by-20, "☠ -ЖИЗНЬ!", {
@@ -2429,7 +2521,7 @@ class GameScene extends Phaser.Scene {
       for(let i=0;i<3;i++) { this.hitIcons[i].setColor("#00e5ff"); this.hitIcons[i].setText("★"); }
     }
 
-    const runMult = this.doubleScoreActive ? 2 : 1;
+    const runMult = (this.doubleScoreActive ? 2 : 1) * (this.x3ScoreActive ? 3 : 1);
     const waveMult = this.waveProfile?.scoreMult || 1;
     const isCrit = Math.random() < this.critChance;
     const critMult = isCrit ? 2 : 1;
@@ -2447,12 +2539,12 @@ class GameScene extends Phaser.Scene {
       this.tweens.add({ targets:f, x:bx+Phaser.Math.Between(-80,80), y:by+Phaser.Math.Between(-60,80),
         angle:Phaser.Math.Between(-180,180), alpha:0, duration:700+Math.random()*300, ease:"Quad.easeOut", onComplete:()=>f.destroy() });
     }
-    const gained = Math.round(pts * this.comboMult * runMult * waveMult * critMult);
-    const color = isCrit ? "#ff8a65" : (this.comboMult >= 3 ? "#00e5ff" : (pts>=300?"#FFD700":"#7CFF00"));
+    const gained = Math.round(pts * runMult * waveMult * critMult);
+    const color = isCrit ? "#ff8a65" : (pts>=300?"#FFD700":"#7CFF00");
     const popupParts = [`+${gained}`];
     if (isCrit) popupParts.unshift('CRIT!');
-    if (this.comboMult > 1) popupParts.push(`x${this.comboMult}`);
-    if (runMult > 1) popupParts.push("x2");
+    if (this.doubleScoreActive) popupParts.push("x2");
+    if (this.x3ScoreActive) popupParts.push("x3🌟");
     const popupLabel = popupParts.join("  ");
     const popup = this.add.text(bx, by-30, popupLabel, {
       fontSize:"60px", color, stroke:"#000", strokeThickness:7, fontStyle:"bold"
@@ -2461,7 +2553,7 @@ class GameScene extends Phaser.Scene {
 
     this.score += gained;
     this.scoreText.setText(`SCORE: ${this.score}`);
-    this.cameras.main.shake(90, (shotFx.shake || 0.004) + Math.min(this.comboMult, 5) * 0.0015);
+    this.cameras.main.shake(90, shotFx.shake || 0.004);
   }
 
   updateGameTimer() {
@@ -2483,6 +2575,163 @@ class GameScene extends Phaser.Scene {
     if(this.spawnEvent) this.spawnEvent.remove(false);
     this.spawnEvent = this.time.addEvent({ delay, callback:this.spawnBird, callbackScope:this, loop:true });
   }
+
+  applyBonusBird(bonusType, bx, by) {
+    const W = this.scale.width;
+    const bonusColors   = { 1:0x00ff88, 2:0xffcc00, 3:0x00cfff, 4:0xff44aa, 5:0xff88ff };
+    const bonusLabels   = { 1:"❤ +ЖИЗНЬ!", 2:"✕3 ОЧКИ!", 3:"❄ ЗАМЕДЛЕНИЕ!", 4:"🧲 МАГНИТ!", 5:"🌈 РАДУГА!" };
+    const bonusMsgColor = { 1:"#00ff88", 2:"#FFD700", 3:"#00cfff", 4:"#ff44aa", 5:"#ff88ff" };
+
+    // Вспышка
+    this.spawnImpactBurst(bx, by, [bonusColors[bonusType], 0xffffff], 14, 90, 7);
+    const hitImg = this.add.image(bx, by, "hit").setScale(0.7).setTint(bonusColors[bonusType]).setDepth(18);
+    this.tweens.add({ targets:hitImg, alpha:0, scale:1.6, duration:400, onComplete:()=>hitImg.destroy() });
+
+    // Попап
+    const popup = this.add.text(bx, by - 40, bonusLabels[bonusType], {
+      fontSize:"52px", color: bonusMsgColor[bonusType], stroke:"#000", strokeThickness:8, fontStyle:"bold"
+    }).setOrigin(0.5).setDepth(25);
+    this.tweens.add({ targets:popup, y:popup.y - 110, alpha:0, duration:1100, ease:"Quad.easeOut", onComplete:()=>popup.destroy() });
+
+    this.cameras.main.shake(80, 0.007);
+
+    switch (bonusType) {
+      case 1: this.bonusExtraLife(); break;
+      case 2: this.bonusX3Score(); break;
+      case 3: this.bonusSlowBird(); break;
+      case 4: this.bonusMagnet(bx, by); break;
+      case 5: this.bonusRainbow(bx, by); break;
+    }
+  }
+
+  bonusExtraLife() {
+    if (this.lives >= 5) return; // кап
+    this.lives++;
+    const hearts = ["","❤","❤❤","❤❤❤","❤❤❤❤","❤❤❤❤❤"];
+    this.livesText.setText(hearts[Math.max(0, this.lives)]);
+    const flash = this.add.rectangle(this.scale.width/2, this.scale.height/2, this.scale.width, this.scale.height, 0x00ff88, 0.22);
+    this.tweens.add({ targets:flash, alpha:0, duration:500, onComplete:()=>flash.destroy() });
+  }
+
+  bonusX3Score() {
+    if (this.x3ScoreActive) return;
+    this.x3ScoreActive = true;
+    const W = this.scale.width;
+    if (this.x3TimerText) this.x3TimerText.destroy();
+    this.x3TimerText = this.add.text(W/2, 290, "✕3 ОЧКИ: 8с", {
+      fontSize:"26px", color:"#FFD700", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+    }).setOrigin(0.5).setDepth(20);
+
+    let left = 8;
+    if (this.x3ScoreTimer) this.x3ScoreTimer.remove(false);
+    this.x3ScoreTimer = this.time.addEvent({ delay:1000, repeat:7, callback:() => {
+      left--;
+      if (this.x3TimerText?.active) {
+        if (left > 0) this.x3TimerText.setText(`✕3 ОЧКИ: ${left}с`);
+        else { this.x3TimerText.destroy(); this.x3ScoreActive = false; }
+      }
+    }});
+  }
+
+  bonusSlowBird() {
+    // Если SlowMo уже активен — просто продлеваем
+    if (this.slowMoActive) {
+      if (this.slowMoTimer) this.slowMoTimer.remove(false);
+      this.slowMoTimer = this.time.delayedCall(5000, () => {
+        this.slowMoActive = false;
+        this.birds.children.entries.forEach(b => { if (b?.body) { b.body.velocity.x /= 0.45; b.body.velocity.y /= 0.45; } });
+        this.updateBoosterButtons(); this.updateBoosterBars();
+      });
+      return;
+    }
+    // Иначе запускаем через штатный механизм
+    this.slowMoReady = true;
+    this.activateSlowMo();
+  }
+
+  bonusMagnet(bx, by) {
+    if (this.magnetActive) return;
+    this.magnetActive = true;
+    const { width:W, height:H } = this.scale;
+    const cx = W/2, cy = H/2;
+
+    const ring = this.add.circle(cx, cy, 20, 0xff44aa, 0.9).setDepth(20);
+    this.tweens.add({ targets:ring, scaleX:18, scaleY:18, alpha:0, duration:700, onComplete:()=>ring.destroy() });
+
+    const label = this.add.text(cx, H*0.42, "🧲 МАГНИТ!", {
+      fontSize:"46px", color:"#ff44aa", stroke:"#000", strokeThickness:8, fontStyle:"bold"
+    }).setOrigin(0.5).setDepth(25);
+    this.tweens.add({ targets:label, alpha:0, y:label.y-60, duration:1200, onComplete:()=>label.destroy() });
+
+    const birds = this.birds.children.entries.slice().filter(b => b.active && !b.isBoss && !b.isDanger);
+    let settled = 0;
+    if (!birds.length) { this.magnetActive = false; return; }
+
+    birds.forEach(bird => {
+      if (bird._bonusLabel?.active) bird._bonusLabel.destroy();
+      // Тяжёлый tween к центру
+      this.tweens.add({
+        targets: bird,
+        x: cx + Phaser.Math.Between(-40,40),
+        y: cy + Phaser.Math.Between(-40,40),
+        duration: 600,
+        ease: "Quad.easeIn",
+        onComplete: () => {
+          if (!bird.active) { checkDone(); return; }
+          // Взрыв
+          const pts = bird.points || 100;
+          const runMult = (this.doubleScoreActive ? 2 : 1) * (this.x3ScoreActive ? 3 : 1);
+          const waveMult = this.waveProfile?.scoreMult || 1;
+          const gained = Math.round(pts * runMult * waveMult);
+          this.score += gained;
+          this.scoreText.setText(`SCORE: ${this.score}`);
+          this.spawnImpactBurst(bird.x, bird.y, [0xff44aa, 0xffffff, 0xff8888], 8, 50, 5);
+          if (gained > 0) {
+            const p = this.add.text(bird.x, bird.y-20, `+${gained}`, {
+              fontSize:"36px", color:"#ff88ff", stroke:"#000", strokeThickness:5, fontStyle:"bold"
+            }).setOrigin(0.5).setDepth(22);
+            this.tweens.add({ targets:p, y:p.y-50, alpha:0, duration:600, onComplete:()=>p.destroy() });
+          }
+          bird.destroy();
+          this.sessionHits++;
+          checkDone();
+        }
+      });
+    });
+
+    const checkDone = () => {
+      settled++;
+      if (settled >= birds.length) this.magnetActive = false;
+    };
+  }
+
+  bonusRainbow(bx, by) {
+    const { width:W } = this.scale;
+    const allBirds = this.birds.children.entries.filter(b => b.active && !b.isBoss && !b.isDanger && !b.bonusType);
+    const totalPts = allBirds.reduce((sum, b) => sum + (b.points || 0), 0);
+    const gained = totalPts + 300;
+
+    const runMult = (this.doubleScoreActive ? 2 : 1) * (this.x3ScoreActive ? 3 : 1);
+    const waveMult = this.waveProfile?.scoreMult || 1;
+    const finalGained = Math.round(gained * runMult * waveMult);
+    this.score += finalGained;
+    this.scoreText.setText(`SCORE: ${this.score}`);
+
+    // Радужная вспышка
+    const colors = [0xff0000, 0xff8800, 0xffff00, 0x00ff00, 0x00ccff, 0x8800ff];
+    colors.forEach((c, i) => {
+      this.time.delayedCall(i*60, () => {
+        const r = this.add.circle(bx, by, 10, c, 0.85).setDepth(19);
+        this.tweens.add({ targets:r, scaleX:22, scaleY:22, alpha:0, duration:500, ease:"Quad.easeOut", onComplete:()=>r.destroy() });
+      });
+    });
+
+    const popup = this.add.text(W/2, by - 60, `🌈 РАДУГА  +${finalGained}`, {
+      fontSize:"52px", color:"#ff88ff", stroke:"#000", strokeThickness:8, fontStyle:"bold", align:"center"
+    }).setOrigin(0.5).setDepth(26);
+    this.tweens.add({ targets:popup, y:popup.y-120, alpha:0, duration:1200, ease:"Quad.easeOut", onComplete:()=>popup.destroy() });
+  }
+
 
   loseLife(reason) {
     if(this.isGameOver) return;
