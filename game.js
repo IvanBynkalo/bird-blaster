@@ -306,6 +306,7 @@ function getUpgradeMeta(upgradeId) {
   if (upgradeId === 'fireRate') return { stateKey: 'fireRateLevel', maxLevel: SHOP_ITEMS.fireRate.maxLevel, basePrice: SHOP_ITEMS.fireRate.basePrice, step: SHOP_ITEMS.fireRate.step };
   if (upgradeId === 'bulletLab') return { stateKey: 'bulletLabLevel', maxLevel: SHOP_ITEMS.bulletLab.maxLevel, basePrice: SHOP_ITEMS.bulletLab.basePrice, step: SHOP_ITEMS.bulletLab.step };
   if (upgradeId === 'critTech') return { stateKey: 'critTechLevel', maxLevel: SHOP_ITEMS.critTech.maxLevel, basePrice: SHOP_ITEMS.critTech.basePrice, step: SHOP_ITEMS.critTech.step };
+  if (upgradeId === 'bonusBirdRate') return { stateKey: 'bonusBirdRateLevel', maxLevel: 4, basePrice: 1200, step: 1800 };
   return null;
 }
 
@@ -1167,6 +1168,7 @@ class GameScene extends Phaser.Scene {
     this.comboMult   = 1; // kept for compatibility, always 1
     this.bonusBirdChance = 0.08 + (loadShopState().bonusBirdRateLevel || 0) * 0.02;
     this.magnetActive = false;
+    this.sinceLastBlack = 0; // счётчик птиц с последней чёрной
     this.rainbowBonusPending = false;
     this.x3ScoreActive = false;
     this.x3ScoreTimer = null;
@@ -1720,6 +1722,7 @@ class GameScene extends Phaser.Scene {
     this.bossActive = true;
     this.bossPhase2Active = false;
     this.crowObstacles = [];
+    this.sinceLastBlack = 0;
     this.stopBossCrowSwarm();
     const startLeft = Phaser.Math.Between(0, 1) === 0;
     const boss = this.birds.create(startLeft ? 120 : W - 120, Phaser.Math.Between(260, 400), this.waveIndex % 2 === 0 ? "birdBlack" : "birdGold");
@@ -2299,31 +2302,40 @@ class GameScene extends Phaser.Scene {
     const { width:W, height:H } = this.scale;
     const side = Phaser.Math.Between(0,1);
     const profile = this.waveProfile || this.getWaveProfile(this.waveIndex || 1);
-    const roll = Phaser.Math.Between(1,100);
     const w = profile.weights;
     let texture="birdBlue", points=100, speed=Phaser.Math.Between(110,160), scale=0.13, isDanger=false;
-    if (roll <= w.blue) {
+
+    // Гарантированный равномерный спавн чёрных: если прошло слишком много птиц без чёрной — форсируем
+    const blackEvery = Math.max(4, Math.round(100 / Math.max(1, w.black))); // ~каждые N птиц
+    const forceBlack = (this.sinceLastBlack >= blackEvery);
+
+    const roll = forceBlack ? (w.blue + w.red + 1) : Phaser.Math.Between(1,100);
+
+    if (roll <= w.blue && !forceBlack) {
       texture = "birdBlue";
       points = 100;
       speed = Phaser.Math.Between(110,160);
       scale = 0.13;
-    } else if (roll <= w.blue + w.red) {
+    } else if (roll <= w.blue + w.red && !forceBlack) {
       texture = "birdRed";
       points = 150;
       speed = Phaser.Math.Between(180,250);
       scale = 0.12;
-    } else if (roll <= w.blue + w.red + w.black) {
+    } else if (roll <= w.blue + w.red + w.black || forceBlack) {
       texture = "birdBlack";
       points = 0;
       speed = Phaser.Math.Between(200,280);
       scale = 0.115;
       isDanger = true;
+      this.sinceLastBlack = 0;
     } else {
       texture = "birdGold";
       points = 300;
       speed = Phaser.Math.Between(130,190);
       scale = 0.14;
     }
+
+    if (!isDanger) this.sinceLastBlack++;
 
     const spawnY  = Phaser.Math.Between(270, Math.floor(H*0.62));
     const startX  = side===0 ? -160 : W+160;
