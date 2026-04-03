@@ -2446,8 +2446,8 @@ class GameScene extends Phaser.Scene {
         for(let i=0;i<3;i++) { this.hitIcons[i].setColor("#00e5ff"); this.hitIcons[i].setText("★"); }
       }
 
-      const bossHit = this.add.image(bx, by, "hit").setScale(1).setTint(0xffb300).setDepth(18);
-      this.tweens.add({ targets:bossHit, alpha:0, scale:2.1, duration:500, onComplete:()=>bossHit.destroy() });
+      const bossHit = this.add.image(bx, by, "hit").setScale(0.22).setTint(0xffb300).setDepth(18);
+      this.tweens.add({ targets:bossHit, alpha:0, scale:0.44, duration:500, onComplete:()=>bossHit.destroy() });
       for(let i=0;i<12;i++){
         const f = this.add.image(bx, by, "feather")
           .setScale(0.1+Math.random()*0.1).setRotation(Math.random()*Math.PI*2).setAlpha(0.95).setTint(i % 2 ? 0xffd54f : 0xff7043);
@@ -2505,8 +2505,8 @@ class GameScene extends Phaser.Scene {
 
       const dangerFx = bullet.fxProfile || this.getBulletFxProfile(0.3, false, false);
       this.spawnImpactBurst(bx, by, [0xff0000, dangerFx.trail, dangerFx.secondary || 0xffffff], 12, 90, 7);
-      const hit = this.add.image(bx, by, this.getHitTexture()).setScale(0.6).setTint(0xff0000).setDepth(18);
-      this.tweens.add({ targets:hit, alpha:0, scale:1.8, duration:400, onComplete:()=>hit.destroy() });
+      const hit = this.add.image(bx, by, this.getHitTexture()).setScale(0.13).setTint(0xff0000).setDepth(18);
+      this.tweens.add({ targets:hit, alpha:0, scale:0.26, duration:400, onComplete:()=>hit.destroy() });
 
       this.resetCombo();
       this.cameras.main.shake(160, 0.012);
@@ -2541,9 +2541,9 @@ class GameScene extends Phaser.Scene {
     const shotFx = bullet.fxProfile || this.getBulletFxProfile(0.3, false, false);
     if (isCrit) shotFx.hitPalette = [0xff8a65, 0xffcc80, 0xff7043];
     this.spawnImpactBurst(bx, by, shotFx.hitPalette || [0xffffff], isCrit ? 12 : 8, isCrit ? 78 : 56, isCrit ? 6 : 5);
-    const hit = this.add.image(bx, by, this.getHitTexture()).setScale(isCrit ? 0.68 : 0.5).setDepth(18);
+    const hit = this.add.image(bx, by, this.getHitTexture()).setScale(isCrit ? 0.16 : 0.12).setDepth(18);
     if (isCrit) hit.setTint(0xff8a65);
-    this.tweens.add({ targets:hit, alpha:0, scale:1.3, duration:350, onComplete:()=>hit.destroy() });
+    this.tweens.add({ targets:hit, alpha:0, scale:isCrit ? 0.30 : 0.22, duration:350, onComplete:()=>hit.destroy() });
 
     for(let i=0;i<5;i++){
       const f = this.add.image(bx, by, "feather")
@@ -2596,8 +2596,8 @@ class GameScene extends Phaser.Scene {
 
     // Вспышка
     this.spawnImpactBurst(bx, by, [bonusColors[bonusType], 0xffffff], 14, 90, 7);
-    const hitImg = this.add.image(bx, by, "hit").setScale(0.7).setTint(bonusColors[bonusType]).setDepth(18);
-    this.tweens.add({ targets:hitImg, alpha:0, scale:1.6, duration:400, onComplete:()=>hitImg.destroy() });
+    const hitImg = this.add.image(bx, by, "hit").setScale(0.14).setTint(bonusColors[bonusType]).setDepth(18);
+    this.tweens.add({ targets:hitImg, alpha:0, scale:0.28, duration:400, onComplete:()=>hitImg.destroy() });
 
     // Попап
     const popup = this.add.text(bx, by - 40, bonusLabels[bonusType], {
