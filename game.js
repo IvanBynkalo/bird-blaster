@@ -463,7 +463,7 @@ function loadLocalLeaderboard(modeId = "classic") {
         date: row.date || ""
       }))
       .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+      .slice(0, 20);
   } catch (e) {
     return [];
   }
@@ -471,7 +471,7 @@ function loadLocalLeaderboard(modeId = "classic") {
 
 function saveLocalLeaderboard(rows, modeId = "classic") {
   try {
-    localStorage.setItem(getLeaderboardStorageKey(modeId), JSON.stringify((rows || []).slice(0, 10)));
+    localStorage.setItem(getLeaderboardStorageKey(modeId), JSON.stringify((rows || []).slice(0, 20)));
   } catch (e) {}
 }
 
@@ -483,7 +483,7 @@ function addLocalLeaderboardScore(name, score, modeId = "classic") {
     date: new Date().toISOString().slice(0, 10),
     mode: getLeaderboardModeId(modeId)
   });
-  const trimmed = rows.sort((a, b) => b.score - a.score).slice(0, 10);
+  const trimmed = rows.sort((a, b) => b.score - a.score).slice(0, 20);
   saveLocalLeaderboard(trimmed, modeId);
   return trimmed;
 }
@@ -577,7 +577,7 @@ const LeaderboardService = {
           createdAt: Date.now()
         });
       }
-      return await this.loadTop(10, safeMode);
+      return await this.loadTop(20, safeMode);
     } catch (e) {
       console.warn("Global leaderboard save failed, using local:", e);
       return addLocalLeaderboardScore(cleanName, cleanScore, safeMode);
@@ -1647,6 +1647,7 @@ class GameScene extends Phaser.Scene {
     this.bossSpawnedThisWave = false;
     this.bossActive = false;
     this.bossBird = null;
+    this.bossPhase2Active = false;
     const pressureFactor = this.timePressureLevel === 2 ? 140 : this.timePressureLevel === 1 ? 80 : 0;
     this.spawnDelayCurrent = Math.max(520, (this.modeId === "timeAttack" ? 1080 : 1320) - index * 34 - pressureFactor - (stage - 1) * 48);
     this.speedWaveMultiplier = (this.waveProfile?.speedMult || 1) + (index - 1) * 0.045 + (this.modeId === "timeAttack" ? 0.08 : 0) + this.timePressureLevel * 0.04 + (stage - 1) * 0.06;
@@ -1675,6 +1676,9 @@ class GameScene extends Phaser.Scene {
     const { width:W } = this.scale;
     this.bossSpawnedThisWave = true;
     this.bossActive = true;
+    this.bossPhase2Active = false;
+    this.crowObstacles = [];
+    this.stopBossCrowSwarm();
     const startLeft = Phaser.Math.Between(0, 1) === 0;
     const boss = this.birds.create(startLeft ? 120 : W - 120, Phaser.Math.Between(260, 400), this.waveIndex % 2 === 0 ? "birdBlack" : "birdGold");
     boss.setScale(0.28);
@@ -1723,11 +1727,104 @@ class GameScene extends Phaser.Scene {
         this.bossHpBarFill.setVisible(true);
         this.bossHpBarFill.width = 300 * progress;
       }
+
+      // Активируем рой ворон при первом падении ниже 50%
+      if (!this.bossPhase2Active && progress <= 0.5) {
+        this.bossPhase2Active = true;
+        this.startBossCrowSwarm();
+      }
     } else {
       this.bossHpText.setVisible(false).setText("");
       if (this.bossHpBarBg) this.bossHpBarBg.setVisible(false);
       if (this.bossHpBarFill) this.bossHpBarFill.setVisible(false).width = 0;
+      this.stopBossCrowSwarm();
     }
+  }
+
+  startBossCrowSwarm() {
+    const { width: W, height: H } = this.scale;
+    const label = this.add.text(W / 2, H / 2 - 60, "☠ ВОРОН ПРИЗЫВАЕТ СТАЮ!", {
+      fontSize: "38px", color: "#ff4444", stroke: "#000", strokeThickness: 7, fontStyle: "bold"
+    }).setOrigin(0.5).setDepth(35);
+    this.tweens.add({ targets: label, alpha: 0, y: label.y - 80, duration: 1800, ease: "Quad.easeOut", onComplete: () => label.destroy() });
+    this.cameras.main.shake(200, 0.014);
+
+    // Спавним первый залп ворон немедленно
+    for (let i = 0; i < 5; i++) {
+      this.time.delayedCall(i * 220, () => { if (!this.isGameOver && this.bossActive) this.spawnCrowObstacle(); });
+    }
+
+    // Периодический спавн ворон пока жив босс
+    this.crowSwarmEvent = this.time.addEvent({
+      delay: 1200,
+      callback: () => {
+        if (!this.isGameOver && this.bossActive && this.bossPhase2Active) {
+          const count = Phaser.Math.Between(1, 3);
+          for (let i = 0; i < count; i++) {
+            this.time.delayedCall(i * 180, () => { if (!this.isGameOver && this.bossActive) this.spawnCrowObstacle(); });
+          }
+        }
+      },
+      callbackScope: this,
+      loop: true
+    });
+  }
+
+  stopBossCrowSwarm() {
+    if (this.crowSwarmEvent) {
+      this.crowSwarmEvent.remove(false);
+      this.crowSwarmEvent = null;
+    }
+    this.bossPhase2Active = false;
+    // Убираем всех декоративных ворон (помечены как isCrowObstacle)
+    if (this.crowObstacles) {
+      this.crowObstacles.forEach((crow) => { if (crow && crow.active) crow.destroy(); });
+      this.crowObstacles = [];
+    }
+  }
+
+  spawnCrowObstacle() {
+    const { width: W, height: H } = this.scale;
+    const side = Phaser.Math.Between(0, 1);
+    const startX = side === 0 ? -80 : W + 80;
+    const targetX = side === 0 ? W + 100 : -100;
+    const spawnY = Phaser.Math.Between(200, Math.floor(H * 0.70));
+    const targetY = spawnY + Phaser.Math.Between(-120, 120);
+    const speed = Phaser.Math.Between(220, 380);
+
+    // Создаём ворону как обычную птицу в physics group
+    const crow = this.birds.create(startX, spawnY, "birdBlack");
+    crow.setScale(0.10 + Math.random() * 0.03);
+    crow.setFlipX(side === 1);
+    crow.setAlpha(0.88);
+    crow.setTint(0x220000); // тёмно-красный оттенок для отличия от обычных чёрных
+    crow.points = 0;
+    crow.isDanger = true;
+    crow.isBoss = false;
+    crow.isCrowObstacle = true;
+    this.applyBirdHitbox(crow);
+    this.physics.moveTo(crow, targetX, targetY, speed);
+
+    // Хаотичное покачивание
+    this.tweens.add({
+      targets: crow,
+      y: crow.y + Phaser.Math.Between(-50, 50),
+      duration: Phaser.Math.Between(300, 600),
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut"
+    });
+
+    if (!this.crowObstacles) this.crowObstacles = [];
+    this.crowObstacles.push(crow);
+
+    // Ворона исчезает через 4 секунды или когда улетит за экран
+    this.time.delayedCall(4000, () => {
+      if (crow && crow.active) {
+        this.tweens.add({ targets: crow, alpha: 0, duration: 300, onComplete: () => { if (crow.active) crow.destroy(); } });
+      }
+      this.crowObstacles = (this.crowObstacles || []).filter(c => c !== crow);
+    });
   }
 
   checkWaveProgress() {
@@ -1932,6 +2029,29 @@ class GameScene extends Phaser.Scene {
     if (isCrit) {
       return { trail: 0xff8a65, secondary: 0xffcc80, radius: 7, repeat: 7, alpha: 0.72, pulse: true, hitPalette: [0xff8a65, 0xffcc80, 0xff7043], shake: 0.008 };
     }
+
+    // Профиль по стилю пули
+    const style = getActiveBulletStyle();
+    switch (style) {
+      case "laser":
+        return { trail: 0xff0044, secondary: 0xff88aa, radius: 4, repeat: 9, alpha: 0.85, pulse: false, shadow: true, hitPalette: [0xff0044, 0xff88aa, 0xffffff], shake: 0.006 };
+      case "ice":
+        return { trail: 0x00cfff, secondary: 0xd0f4ff, radius: 7, repeat: 7, alpha: 0.70, pulse: false, shadow: true, hitPalette: [0x00cfff, 0xd0f4ff, 0xffffff], shake: 0.005 };
+      case "flower":
+        return { trail: 0xff79c6, secondary: 0xffb3e6, radius: 6, repeat: 6, alpha: 0.65, pulse: true, hitPalette: [0xff79c6, 0xffb3e6, 0xffd6f0], shake: 0.004 };
+      case "minion":
+        return { trail: 0xf1c40f, secondary: 0x8e44ad, radius: 7, repeat: 7, alpha: 0.72, pulse: true, hitPalette: [0xf1c40f, 0x8e44ad, 0xfff59d], shake: 0.005 };
+      case "rainbow":
+        // Радуга: цвет трейла меняется каждый раз (через время)
+        { const rainbowColors = [0xff4444, 0xff9900, 0xffe600, 0x44ff44, 0x00ccff, 0x9933ff];
+          const rc = rainbowColors[Math.floor(this.time ? this.time.now / 80 : 0) % rainbowColors.length];
+          return { trail: rc, secondary: 0xffffff, radius: 6, repeat: 8, alpha: 0.75, pulse: true, hitPalette: rainbowColors, shake: 0.005 }; }
+      case "plasma":
+        return { trail: 0x7c00ff, secondary: 0x00e5ff, radius: 9, repeat: 8, alpha: 0.80, pulse: true, shadow: true, hitPalette: [0x7c00ff, 0x00e5ff, 0xd9b3ff], shake: 0.007 };
+      default: // classic — оригинальная логика по заряду
+        break;
+    }
+
     if (chargeT >= 0.8) {
       return { trail: 0xff4400, secondary: 0xffcc80, radius: 7, repeat: 7, alpha: 0.7, pulse: true, hitPalette: [0xff4400, 0xffcc80, 0xff7043], shake: 0.0065 };
     }
@@ -2088,7 +2208,11 @@ class GameScene extends Phaser.Scene {
   resetCombo() {
     this.comboHits = 0;
     this.comboMult = 1;
+    // Сброс накопленных бонусов — промах отменяет готовность если они ещё не активированы
+    if (!this.slowMoActive) this.slowMoReady = false;
+    if (!this.doubleScoreActive) this.doubleScoreReady = false;
     this.updateComboUI();
+    this.updateBoosterButtons();
     this.updateBoosterBars();
   }
 
