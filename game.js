@@ -192,10 +192,11 @@ function loadShopState() {
       fireRateLevel: Math.max(0, Math.min(10, Number(raw.fireRateLevel) || 0)),
       bulletLabLevel: Math.max(0, Math.min(10, Number(raw.bulletLabLevel) || 0)),
       critTechLevel: Math.max(0, Math.min(5, Number(raw.critTechLevel) || 0)),
-      luckyCaseOpened: Math.max(0, Number(raw.luckyCaseOpened) || 0)
+      luckyCaseOpened: Math.max(0, Number(raw.luckyCaseOpened) || 0),
+      bonusBirdRateLevel: Math.max(0, Math.min(4, Number(raw.bonusBirdRateLevel) || 0))
     };
   } catch (e) {
-    return { blasterPro: false, bigBullet: false, fireRateLevel: 0, bulletLabLevel: 0, critTechLevel: 0, luckyCaseOpened: 0 };
+    return { blasterPro: false, bigBullet: false, fireRateLevel: 0, bulletLabLevel: 0, critTechLevel: 0, luckyCaseOpened: 0, bonusBirdRateLevel: 0 };
   }
 }
 
@@ -1063,8 +1064,8 @@ class MenuScene extends Phaser.Scene {
     buyCritBtn.onclick = () => { const res = buyUpgrade('critTech'); insufficient(res); render(); };
     if (buyBonusBirdBtn) buyBonusBirdBtn.onclick = () => {
       const res = buyUpgrade('bonusBirdRate');
-      if (res.ok) render();
-      else if (res.reason === 'coins') alert(`Нужно ${res.price} монет, у вас ${res.coins}`);
+      render();
+      if (!res.ok && res.reason === 'coins') alert(`Недостаточно монет`);
     };
     openCaseBtn.onclick = () => {
       const res = openLuckyCase();
