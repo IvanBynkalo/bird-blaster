@@ -642,8 +642,14 @@ class BootScene extends Phaser.Scene {
     this.load.image("bulletMinion",  "assets/bullets/bullet_minion.png");
     this.load.image("bulletRainbow", "assets/bullets/bullet_rainbow.png");
     this.load.image("bulletPlasma",  "assets/bullets/bullet_plasma.png");
-    this.load.image("hit",       "assets/hit.png");
-    this.load.image("feather",   "assets/feather.png");
+    this.load.image("hit",           "assets/hit.png");
+    this.load.image("hitLaser",      "assets/hits/hit_laser.png");
+    this.load.image("hitIce",        "assets/hits/hit_ice.png");
+    this.load.image("hitFlower",     "assets/hits/hit_flower.png");
+    this.load.image("hitMinion",     "assets/hits/hit_minion.png");
+    this.load.image("hitRainbow",    "assets/hits/hit_rainbow.png");
+    this.load.image("hitPlasma",     "assets/hits/hit_plasma.png");
+    this.load.image("feather",       "assets/feather.png");
   }
 
   create() {
@@ -2022,6 +2028,21 @@ class GameScene extends Phaser.Scene {
     }});
   }
 
+  getHitTexture() {
+    const map = {
+      laser:   "hitLaser",
+      ice:     "hitIce",
+      flower:  "hitFlower",
+      minion:  "hitMinion",
+      rainbow: "hitRainbow",
+      plasma:  "hitPlasma",
+    };
+    const style = getActiveBulletStyle();
+    const key = map[style] || "hit";
+    // Fallback to "hit" if texture not loaded yet
+    return this.textures.exists(key) ? key : "hit";
+  }
+
   getBulletFxProfile(chargeT = 0, isSuper = false, isCrit = false) {
     if (isSuper) {
       return { trail: 0xFFD700, secondary: 0xff7043, radius: 9, repeat: 8, alpha: 0.75, pulse: true, hitPalette: [0xFFD700, 0xff7043, 0xfff59d], shake: 0.01 };
@@ -2380,7 +2401,7 @@ class GameScene extends Phaser.Scene {
 
       const dangerFx = bullet.fxProfile || this.getBulletFxProfile(0.3, false, false);
       this.spawnImpactBurst(bx, by, [0xff0000, dangerFx.trail, dangerFx.secondary || 0xffffff], 12, 90, 7);
-      const hit = this.add.image(bx, by, "hit").setScale(0.6).setTint(0xff0000).setDepth(18);
+      const hit = this.add.image(bx, by, this.getHitTexture()).setScale(0.6).setTint(0xff0000).setDepth(18);
       this.tweens.add({ targets:hit, alpha:0, scale:1.8, duration:400, onComplete:()=>hit.destroy() });
 
       this.resetCombo();
@@ -2416,7 +2437,7 @@ class GameScene extends Phaser.Scene {
     const shotFx = bullet.fxProfile || this.getBulletFxProfile(0.3, false, false);
     if (isCrit) shotFx.hitPalette = [0xff8a65, 0xffcc80, 0xff7043];
     this.spawnImpactBurst(bx, by, shotFx.hitPalette || [0xffffff], isCrit ? 12 : 8, isCrit ? 78 : 56, isCrit ? 6 : 5);
-    const hit = this.add.image(bx, by, "hit").setScale(isCrit ? 0.68 : 0.5).setDepth(18);
+    const hit = this.add.image(bx, by, this.getHitTexture()).setScale(isCrit ? 0.68 : 0.5).setDepth(18);
     if (isCrit) hit.setTint(0xff8a65);
     this.tweens.add({ targets:hit, alpha:0, scale:1.3, duration:350, onComplete:()=>hit.destroy() });
 
